@@ -1,13 +1,17 @@
 # import modules
 import csv
+import os
 from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 path_for_db = "Python_Course_IU\\my_db.db"
+if os.path.exists(path_for_db):
+    os.remove(path_for_db)
 
 
-def create_sqllite_table():
+def import_train_csv_to_sqllite_table():
+
     # Create an engine that connects to a SQLite database
     engine = create_engine("sqlite:///"+path_for_db, echo=True)
 
@@ -26,16 +30,12 @@ def create_sqllite_table():
         y4 = Column(Float)
 
         def __repr__(self):
-            return f"train_data_row(x={self.x}, y1='{self.y1}', y2={self.y2}, \
-                y3='{self.y3}', y4={self.y4})"
+            return f"train_data_row(x={self.x}, y1={self.y1}, y2={self.y2},"\
+                f" y3={self.y3}, y4={self.y4})"
 
     # Create the table in the database
     Base.metadata.create_all(engine)
 
-    return TrainTable
-
-
-def import_train_data_to_sql(TrainTable):
     # Create an engine that connects to the SQLite database
     engine = create_engine(
         "sqlite:///"+path_for_db, echo=True)
@@ -56,12 +56,8 @@ def import_train_data_to_sql(TrainTable):
 
     # Commit the changes to the database
     session.commit()
-
     # Query the database for all rows -> return type: list
-    return session.query(TrainTable).all()
-
-
-TrainTable = create_sqllite_table()
-print(type(TrainTable))
-# train_data = import_train_data_to_sql(TrainTable)
-# print(type(train_data))
+    return_list = session.query(TrainTable).all()
+    # Close session
+    session.close()
+    return return_list
