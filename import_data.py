@@ -5,15 +5,11 @@ from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-path_for_db = "Python_Course_IU\\my_db.db"
-if os.path.exists(path_for_db):
-    os.remove(path_for_db)
 
-
-def import_train_csv_to_sqllite_table():
+def import_train_csv_to_sqllite_table(relative_path):
 
     # Create an engine that connects to a SQLite database
-    engine = create_engine("sqlite:///"+path_for_db, echo=True)
+    engine = create_engine("sqlite:///"+relative_path+"\\my_db.db", echo=True)
 
     # Create a base class for declarative class definitions
     Base = declarative_base()
@@ -36,10 +32,6 @@ def import_train_csv_to_sqllite_table():
     # Create the table in the database
     Base.metadata.create_all(engine)
 
-    # Create an engine that connects to the SQLite database
-    engine = create_engine(
-        "sqlite:///"+path_for_db, echo=True)
-
     # Create a session factory bound to the engine
     Session = sessionmaker(bind=engine)
 
@@ -47,7 +39,7 @@ def import_train_csv_to_sqllite_table():
     session = Session()
 
     # Read the CSV file and add each row as a new user to the database
-    with open('Python_Course_IU\\train.csv', newline='') as csvfile:
+    with open(relative_path+"\\train.csv", newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             train_data = TrainTable(x=row['x'], y1=row['y1'],

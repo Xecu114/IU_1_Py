@@ -1,24 +1,21 @@
 import unittest
-
-from sqlalchemy import LABEL_STYLE_DISAMBIGUATE_ONLY
 import import_data as f
-
 import os
 
-path_for_db = "Python_Course_IU\\my_db.db"
-if os.path.exists(path_for_db):
-    os.remove(path_for_db)
+
+dir_path = "Python_Course_IU"
+if os.path.exists(dir_path+"\\my_db.db"):
+    os.remove(dir_path+"\\my_db.db")
+
 
 # eine Testklasse definieren
 # die die TestCases von unittest erbt
-
-
 class UnitTestMathOperations(unittest.TestCase):
 
     def test_func(self):
         '''
         '''
-        result = f.import_train_csv_to_sqllite_table()
+        result = f.import_train_csv_to_sqllite_table(relative_path=dir_path)
         self.assertIsInstance(result, list)
 
         comp_item_first = "train_data_row(x=-20.0, y1=100.216064,"\
