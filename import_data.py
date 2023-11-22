@@ -49,17 +49,17 @@ def import_datasets_to_sqllite_table(relative_path):
     with open(relative_path+"\\train.csv", newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            train_data = Table_train_csv(x=row['x'], y1=row['y1'],
-                                         y2=row['y2'], y3=row['y3'],
-                                         y4=row['y4'])
+            train_data = Table_train_csv(x=row['x'])
+            for i in range(1, 5):
+                setattr(train_data, f'y{i}', row[f'y{i}'])
             session.add(train_data)
 
     with open(relative_path+"\\ideal.csv", newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            ideal_data = Table_ideal_csv(x=row['x'], y1=row['y1'],
-                                         y2=row['y2'], y3=row['y3'],
-                                         y4=row['y4'])
+            ideal_data = Table_ideal_csv(x=row['x'])
+            for i in range(1, 51):
+                setattr(ideal_data, f'y{i}', row[f'y{i}'])
             session.add(ideal_data)
 
     # Commit the changes to the database
