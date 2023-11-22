@@ -15,15 +15,17 @@ class UnitTestMathOperations(unittest.TestCase):
     def test_func(self):
         '''
         '''
-        result = f.import_train_csv_to_sqllite_table(relative_path=dir_path)
-        self.assertIsInstance(result, list)
+        train_result, ideal_result = f.import_datasets_to_sqllite_table(
+            dir_path)
+        self.assertIsInstance(train_result, list)
+        self.assertIsInstance(ideal_result, list)
 
-        comp_item_first = "train_data_row(x=-20.0, y1=100.216064,"\
+        train_comp_item_first = "train_data(x=-20.0, y1=100.216064,"\
             " y2=-19.757296, y3=0.3461139, y4=19.776287)"
-        self.assertEqual(str(result[0]), str(comp_item_first))
-        comp_item_last = "train_data_row(x=19.9, y1=99.1435,"\
+        train_comp_item_last = "train_data(x=19.9, y1=99.1435,"\
             " y2=20.025005, y3=0.102107115, y4=19.580418)"
-        self.assertEqual(str(result[-1]), comp_item_last)
+        self.assertEqual(str(train_result[0]), train_comp_item_first)
+        self.assertEqual(str(train_result[-1]), train_comp_item_last)
 
 
 # dieses Skript im unittest-Kontext ausführen
