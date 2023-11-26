@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
 import sqlalchemy as db
+from plot_data import plot_sql_data
 from import_data import import_datasets_to_sqllite_table
 import os
 
@@ -64,14 +65,14 @@ def least_square_regression(df_noisy, df_ideal):
         # the 50 ideal functions
         coefficients = np.linalg.lstsq(
             transposed_matrix, column, rcond=None)[0]
-        print(coefficients)
+        # print(coefficients)
         # get index and value of the function that has the coeff
         # which is nearest to zero
         nearest_to_zero_index, nearest_to_zero_coeff = find_nearest(
             coefficients, 0)
-        print(
-            f"Beste Funktion: f{nearest_to_zero_index+1}\n"
-            f"Coeff: {nearest_to_zero_coeff}")
+        # print(
+        # f"Beste Funktion: f{nearest_to_zero_index+1}\n"
+        # f"Coeff: {nearest_to_zero_coeff}")
 
     noise_free_function = noisy_functions
     return noise_free_function, noisy_functions, ideal_functions
@@ -79,9 +80,9 @@ def least_square_regression(df_noisy, df_ideal):
 
 import_datasets_to_sqllite_table(dir_path)
 train_df, ideal_df = get_datasets_from_sql_database(dir_path)
+plot_sql_data(train_df, ideal_df)
 clean_funcs, noisy_funcs, ideal_funcs = least_square_regression(
     df_noisy=train_df, df_ideal=ideal_df)
-
 
 # for unittests:
 # Überprüfen der Länge der Arrays
