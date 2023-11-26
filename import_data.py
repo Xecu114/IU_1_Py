@@ -1,14 +1,27 @@
 # import modules
 import csv
 from sqlalchemy import create_engine, Column, Float
-# from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 
-def import_datasets_to_sqllite_table(relative_path):
+def import_datasets_to_sqllite_table(path):
+    """_summary_
+    1. creates and connects to a new SQLite3 database
+    2. defines classes for the sql tables that inherit from the (sqlalchemy)
+        base class
+    3. loads train.csv and ideal.csv from the passed path into the
+        tables
+    4. queries data back from tables into lists to check them
 
+    Args:
+        path (String): pass (relative) path in which the files
+            are located
+
+    Returns:
+        tuple[List[Table_train_csv], List[Table_ideal_csv]]
+    """
     # Create an engine that connects to a SQLite database
-    engine = create_engine("sqlite:///"+relative_path+"\\my_db.db", echo=True)
+    engine = create_engine("sqlite:///"+path+"\\my_db.db", echo=True)
 
     # Create a base class for declarative class definitions
     Base = declarative_base()
@@ -46,7 +59,7 @@ def import_datasets_to_sqllite_table(relative_path):
     session = Session()
 
     # Read the CSV files and add each row as a new user to the database
-    with open(relative_path+"\\train.csv", newline='') as csvfile:
+    with open(path+"\\train.csv", newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             train_data = Table_train_csv(x=row['x'])
@@ -54,7 +67,7 @@ def import_datasets_to_sqllite_table(relative_path):
                 setattr(train_data, f'y{i}', row[f'y{i}'])
             session.add(train_data)
 
-    with open(relative_path+"\\ideal.csv", newline='') as csvfile:
+    with open(path+"\\ideal.csv", newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             ideal_data = Table_ideal_csv(x=row['x'])
@@ -72,3 +85,9 @@ def import_datasets_to_sqllite_table(relative_path):
     # Close session
     session.close()
     return return_train_list, return_ideal_list
+
+
+def import_test_data():
+    """Testdaten (B) Zeile für Zeile aus einer anderen CSV-Datei geladen
+    und - wenn sie das Kriterium im Unterabschnitt 2 erfüllt - mit einer
+    der vier abgeglichen Funktionen abgespeichert werden"""
