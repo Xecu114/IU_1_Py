@@ -78,11 +78,12 @@ def least_square_regression(df_noisy, df_ideal):
     return noise_free_function, noisy_functions, ideal_functions
 
 
-import_datasets_to_sqllite_table(dir_path)
-train_df, ideal_df = get_datasets_from_sql_database(dir_path)
-plot_sql_data(train_df, ideal_df)
-clean_funcs, noisy_funcs, ideal_funcs = least_square_regression(
-    df_noisy=train_df, df_ideal=ideal_df)
+if __name__ == '__main__':
+    import_datasets_to_sqllite_table(dir_path)
+    train_df, ideal_df = get_datasets_from_sql_database(dir_path)
+    plot_sql_data(train_df, ideal_df)
+    clean_funcs, noisy_funcs, ideal_funcs = least_square_regression(
+        df_noisy=train_df, df_ideal=ideal_df)
 
 # for unittests:
 # Überprüfen der Länge der Arrays

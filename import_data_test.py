@@ -8,8 +8,7 @@ if os.path.exists(dir_path+"\\my_db.db"):
     os.remove(dir_path+"\\my_db.db")
 
 
-# eine Testklasse definieren
-# die die TestCases von unittest erbt
+# define a test class that inherites from unittest TestCases
 class UnitTestMathOperations(unittest.TestCase):
 
     def test_func(self):
