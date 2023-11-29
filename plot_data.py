@@ -43,3 +43,19 @@ def plot_sql_data(train_df, ideal_df):
                       legend_label=str(column))
         plot.legend.location = "top_left"
         show(plot)  # type: ignore
+
+
+def plot_cleaned_data(df):
+    output_file("data_diagram.html")
+    plot = figure(width=1200, height=900, title="Clean Functions Line Plot",
+                  x_axis_label="x", y_axis_label="y")
+    min_max_values = df['x'].agg(['min', 'max'])
+    plot.x_range = Range1d(min_max_values.iloc[0],
+                           min_max_values.iloc[1])
+    for i, column in enumerate(df.columns):
+        if i > 0:
+            plot.line(df.iloc[:, 0], df[column],
+                      line_color=Spectral11[i % len(Spectral11)],
+                      legend_label=str(column))
+    plot.legend.location = "top_left"
+    show(plot)  # type: ignore

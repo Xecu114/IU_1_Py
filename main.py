@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
 import sqlalchemy as db
-from plot_data import plot_sql_data
+from plot_data import plot_sql_data, plot_cleaned_data
 from import_data import import_datasets_to_sqllite_table
 import os
 
@@ -64,7 +64,8 @@ def least_square_regression(df_ideal, df_noisy):
     for j, f in enumerate(noisy_functions):
         # Iterate over the 50 ideal functions
         for i in range(50):
-            #
+            # ...
+            # trf and lm throw same result !
             p = least_squares(residuals, np.ones(3), method='trf',
                               args=(ideal_functions[i], np.arange(400)),
                               verbose=0).x
@@ -81,17 +82,29 @@ def least_square_regression(df_ideal, df_noisy):
         noise_free_functions[j, 0] = j+1
         noise_free_functions[j, 1] = int(result[0, 0])
 
-    return noise_free_functions, noisy_functions, ideal_functions
+    return noise_free_functions
 
 
 if __name__ == '__main__':
     import_datasets_to_sqllite_table(dir_path)
+
     train_df, ideal_df = get_datasets_from_sql_database(dir_path)
+
     plot_sql_data(train_df, ideal_df)
-    clean_funcs_index, noisy_funcs, ideal_funcs = least_square_regression(
+
+    clean_funcs_index = least_square_regression(
         df_ideal=ideal_df,
-        df_noisy=train_df)
-    print(clean_funcs_index)
+        df_noisy=train_df)  # clean_funcs_index has a (4, 2) shape
+
+    # create df with the 4 new "ideal" functions instead of
+    # the 4 noisy functions from the "train" dataset
+    clean_df = pd.DataFrame(
+        columns=['x'], index=range(400))
+    clean_df['x'] = ideal_df.iloc[:, 0]
+    for i in range(4):
+        row_nr = clean_funcs_index[i, 1]
+        clean_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
+    plot_cleaned_data(clean_df)
 
 # for unittests:
 # Überprüfen der Länge der Arrays
