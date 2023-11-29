@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
 import sqlalchemy as db
-from plot_data import plot_sql_data, plot_cleaned_data
+from plot_data import plot_ideal_functions, plot_noisefree_functions
 from import_data import import_datasets_to_sqllite_table
 import os
 
@@ -90,21 +90,21 @@ if __name__ == '__main__':
 
     train_df, ideal_df = get_datasets_from_sql_database(dir_path)
 
-    plot_sql_data(train_df, ideal_df)
+    plot_ideal_functions(ideal_df)
 
-    clean_funcs_index = least_square_regression(
+    noisefree_funcs_index = least_square_regression(
         df_ideal=ideal_df,
-        df_noisy=train_df)  # clean_funcs_index has a (4, 2) shape
+        df_noisy=train_df)  # noisefree_funcs_index has a (4, 2) shape
 
     # create df with the 4 new "ideal" functions instead of
     # the 4 noisy functions from the "train" dataset
-    clean_df = pd.DataFrame(
+    noisefree_df = pd.DataFrame(
         columns=['x'], index=range(400))
-    clean_df['x'] = ideal_df.iloc[:, 0]
+    noisefree_df['x'] = ideal_df.iloc[:, 0]
     for i in range(4):
-        row_nr = clean_funcs_index[i, 1]
-        clean_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
-    plot_cleaned_data(clean_df)
+        row_nr = noisefree_funcs_index[i, 1]
+        noisefree_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
+    plot_noisefree_functions(noisefree_df, train_df)
 
 # for unittests:
 # Überprüfen der Länge der Arrays
@@ -114,6 +114,6 @@ if __name__ == '__main__':
 # print("Arraylänge=", len(ideal_f))  # should be 50
 # for x in range(len(ideal_f)):
 #     print(x, "Spaltenlänge=", len(ideal_f[x]))  # should be 400
-# print("Arraylänge=", len(clean_f))  # should be 4
-# for x in range(len(clean_f)):
-#     print(x, "Spaltenlänge=", len(clean_f[x]))  # should be 400
+# print("Arraylänge=", len(noisefree_f))  # should be 4
+# for x in range(len(noisefree_f)):
+#     print(x, "Spaltenlänge=", len(noisefree_f[x]))  # should be 400
