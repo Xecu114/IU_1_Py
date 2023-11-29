@@ -84,50 +84,6 @@ def least_square_regression(df_ideal, df_noisy):
     return noise_free_functions, noisy_functions, ideal_functions
 
 
-def least_square_regression_old(df_noisy, df_ideal):
-    # Apply least squares regression to each of the 4 functions in
-    # the first (noisy) data set to find the best fitting function in the
-    # second (ideal) data set.
-
-    # Transforming the columns into Numpy-Arrays with a loop
-    noisy_functions = []
-    for column in df_noisy.columns:
-        noisy_functions.append(df_noisy[column].to_numpy())
-    noisy_functions.pop(0)  # delete x column
-
-    ideal_functions = []
-    for column in df_ideal.columns:
-        ideal_functions.append(df_ideal[column].to_numpy())
-    ideal_functions.pop(0)
-
-    # Transform the array with 50 included functioons into a matrix
-    ideal_matrix = np.matrix(ideal_functions)
-    # Transponiere die Matrix
-    transposed_matrix = ideal_matrix.T
-
-    # Loop over the functions and find the best match
-    for f in noisy_functions:
-        # Define the function to be minimized
-        # Transform the function array into a column
-        column = np.matrix(f).T
-
-        # Use numpy.linalg.lstsq to find the coefficients to each of
-        # the 50 ideal functions
-        coefficients = np.linalg.lstsq(
-            transposed_matrix, column, rcond=None)[0]
-        # print(coefficients)
-        # get index and value of the function that has the coeff
-        # which is nearest to zero
-        nearest_to_zero_index, nearest_to_zero_coeff = find_nearest(
-            coefficients, 0)
-        # print(
-        # f"Beste Funktion: f{nearest_to_zero_index+1}\n"
-        # f"Coeff: {nearest_to_zero_coeff}")
-
-    noise_free_function = noisy_functions
-    return noise_free_function, noisy_functions, ideal_functions
-
-
 if __name__ == '__main__':
     import_datasets_to_sqllite_table(dir_path)
     train_df, ideal_df = get_datasets_from_sql_database(dir_path)
