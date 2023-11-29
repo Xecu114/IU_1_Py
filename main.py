@@ -29,13 +29,62 @@ def get_datasets_from_sql_database(path):
     return train_df, ideal_df
 
 
+# function redundant !
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx, array[idx]
 
 
-def least_square_regression(df_noisy, df_ideal):
+# Define a function, that calculates the sum of the squared deviations
+def residuals(p, y, x):
+    return y - np.polyval(p, x)
+
+
+def least_square_regression(df_ideal, df_noisy):
+    # Apply least squares regression to each of the 4 functions in
+    # the first (noisy) data set to find the best fitting function in the
+    # second (ideal) data set.
+
+    # Transforming the columns into Numpy-Arrays with the help of a loop
+    noisy_functions = []
+    for column in df_noisy.columns:
+        noisy_functions.append(df_noisy[column].tolist())
+    noisy_functions.pop(0)  # delete x column
+    ideal_functions = []
+    for column in df_ideal.columns:
+        ideal_functions.append(df_ideal[column].tolist())
+    ideal_functions.pop(0)
+
+    # Initalize array to save the results
+    result = np.zeros((50, 2), dtype=float)
+    noise_free_functions = np.zeros((4, 2), dtype=int)
+
+    # Loop over the functions and find the best match
+    for j, f in enumerate(noisy_functions):
+        # Iterate over the 50 ideal functions
+        for i in range(50):
+            #
+            p = least_squares(residuals, np.ones(3), method='trf',
+                              args=(ideal_functions[i], np.arange(400)),
+                              verbose=0).x
+            # Save the results into an array
+            result[i, 0] = i+1
+            result[i, 1] = np.sum(
+                (np.polyval(p, np.arange(400)) - f) ** 2)
+
+        # Sort the result array after the sum of squared deviations
+        result = result[result[:, 1].argsort()]
+        # print("result Array: ", result)
+
+        # Save the best result into the new array
+        noise_free_functions[j, 0] = j+1
+        noise_free_functions[j, 1] = int(result[0, 0])
+
+    return noise_free_functions, noisy_functions, ideal_functions
+
+
+def least_square_regression_old(df_noisy, df_ideal):
     # Apply least squares regression to each of the 4 functions in
     # the first (noisy) data set to find the best fitting function in the
     # second (ideal) data set.
@@ -50,6 +99,7 @@ def least_square_regression(df_noisy, df_ideal):
     for column in df_ideal.columns:
         ideal_functions.append(df_ideal[column].to_numpy())
     ideal_functions.pop(0)
+
     # Transform the array with 50 included functioons into a matrix
     ideal_matrix = np.matrix(ideal_functions)
     # Transponiere die Matrix
@@ -82,8 +132,10 @@ if __name__ == '__main__':
     import_datasets_to_sqllite_table(dir_path)
     train_df, ideal_df = get_datasets_from_sql_database(dir_path)
     plot_sql_data(train_df, ideal_df)
-    clean_funcs, noisy_funcs, ideal_funcs = least_square_regression(
-        df_noisy=train_df, df_ideal=ideal_df)
+    clean_funcs_index, noisy_funcs, ideal_funcs = least_square_regression(
+        df_ideal=ideal_df,
+        df_noisy=train_df)
+    print(clean_funcs_index)
 
 # for unittests:
 # Überprüfen der Länge der Arrays
