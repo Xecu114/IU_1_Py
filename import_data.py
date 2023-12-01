@@ -1,5 +1,6 @@
 # import modules
 import csv
+import pandas as pd
 from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.orm import sessionmaker, declarative_base
 
@@ -21,12 +22,13 @@ def import_datasets_to_sqllite_table(path):
         tuple[List[Table_train_csv], List[Table_ideal_csv]]
     """
     # Create an engine that connects to a SQLite database
-    engine = create_engine("sqlite:///"+path+"\\my_db.db", echo=True)
+    engine = create_engine("sqlite:///"+path+"\\my_db.db", echo=False)
 
     # Create a base class for declarative class definitions
     Base = declarative_base()
 
-    # Define a class for the table for train.csv that inherits from base class
+    # Define a class for the table for the "train.csv" data that inherits from
+    # base class
     class Table_train_csv(Base):
         __tablename__ = 'train_data'
 
@@ -38,7 +40,8 @@ def import_datasets_to_sqllite_table(path):
             return f"train_data(x={self.x}, y1={self.y1}, y2={self.y2},"\
                 f" y3={self.y3}, y4={self.y4})"
 
-    # Define a class for the table for ideal.csv that inherits from base class
+    # Define a class for the table for the "ideal.csv" data that inherits from
+    # base class
     class Table_ideal_csv(Base):
         __tablename__ = 'ideal_data'
 
@@ -87,7 +90,6 @@ def import_datasets_to_sqllite_table(path):
     return return_train_list, return_ideal_list
 
 
-def import_test_data():
-    """Testdaten (B) Zeile für Zeile aus einer anderen CSV-Datei geladen
-    und - wenn sie das Kriterium im Unterabschnitt 2 erfüllt - mit einer
-    der vier abgeglichen Funktionen abgespeichert werden"""
+def import_test_df(path):
+    df = pd.read_csv(path+"\\test.csv", header=0)
+    return df.sort_values(by='x')

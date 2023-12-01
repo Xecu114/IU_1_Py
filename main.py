@@ -3,9 +3,8 @@ import numpy as np
 from scipy.optimize import least_squares
 import sqlalchemy as db
 from plot_data import plot_ideal_functions, plot_noisefree_functions
-from import_data import import_datasets_to_sqllite_table
+from import_data import import_datasets_to_sqllite_table, import_test_df
 import os
-
 
 dir_path = "Python_Course_IU"
 if os.path.exists(dir_path+"\\my_db.db"):
@@ -29,13 +28,6 @@ def get_datasets_from_sql_database(path):
     return train_df, ideal_df
 
 
-# function redundant !
-def find_nearest(array, value):
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return idx, array[idx]
-
-
 # Define a function, that calculates the sum of the squared deviations
 def residuals(p, y, x):
     return y - np.polyval(p, x)
@@ -49,12 +41,12 @@ def least_square_regression(df_ideal, df_noisy):
     # Transforming the columns into Numpy-Arrays with the help of a loop
     noisy_functions = []
     for column in df_noisy.columns:
-        noisy_functions.append(df_noisy[column].tolist())
-    noisy_functions.pop(0)  # delete x column
+        if column != 'x':
+            noisy_functions.append(df_noisy[column].tolist())
     ideal_functions = []
     for column in df_ideal.columns:
-        ideal_functions.append(df_ideal[column].tolist())
-    ideal_functions.pop(0)
+        if column != 'x':
+            ideal_functions.append(df_ideal[column].tolist())
 
     # Initalize array to save the results
     result = np.zeros((50, 2), dtype=float)
@@ -85,16 +77,38 @@ def least_square_regression(df_ideal, df_noisy):
     return noise_free_functions
 
 
+def find_best_fit_for_test_data(df_noisefree, df_test):
+    # The drop() method removes the column named ‘x’ from the dataframe.
+    # The axis=1 parameter specifies that we want to remove a column.
+    # The inplace=True parameter specifies that we want to modify the
+    # dataframe in place, rather than creating a new one.
+    df_test.drop('x', axis=1, inplace=True)
+    df_noisefree.drop('x', axis=1, inplace=True)
+
+    result_df = pd.DataFrame()
+    result_list = []
+    for j in range(len(df_noisefree.columns)):
+
+        temp = []
+        for i in range(len(df_test)):
+            if df_noisefree.iloc[:, j].apply(
+                    lambda x: (x - df_test.iloc[i, 0])**2).min() < np.sqrt(2):
+                temp.append(df_test.iloc[i, 0])
+        result_list.append(temp)
+        result_df = pd.DataFrame({df_noisefree.columns[j]: temp})
+        print(f"n={len(temp)} bei Funktion {df_noisefree.columns[j]}")
+        print(result_df)
+
+
 if __name__ == '__main__':
     import_datasets_to_sqllite_table(dir_path)
 
     train_df, ideal_df = get_datasets_from_sql_database(dir_path)
 
-    plot_ideal_functions(ideal_df)
+    # plot_ideal_functions(ideal_df)
 
     noisefree_funcs_index = least_square_regression(
-        df_ideal=ideal_df,
-        df_noisy=train_df)  # noisefree_funcs_index has a (4, 2) shape
+        ideal_df, train_df)  # noisefree_funcs_index has a (4, 2) shape
 
     # create df with the 4 new "ideal" functions instead of
     # the 4 noisy functions from the "train" dataset
@@ -104,7 +118,10 @@ if __name__ == '__main__':
     for i in range(4):
         row_nr = noisefree_funcs_index[i, 1]
         noisefree_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
-    plot_noisefree_functions(noisefree_df, train_df)
+    # plot_noisefree_functions(noisefree_df, train_df)
+
+    test_df = import_test_df(dir_path)
+    find_best_fit_for_test_data(noisefree_df, test_df)
 
 # for unittests:
 # Überprüfen der Länge der Arrays
