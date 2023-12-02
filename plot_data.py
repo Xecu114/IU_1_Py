@@ -67,25 +67,53 @@ def plot_noisefree_functions(df, train_df):
     show(plot)  # type: ignore
 
 
+# def plot_testdata_with_and_ideal_functions(df_testdata, df_testpoints,
+#                                           df_noisefree):
+#     output_file("data_diagram.html")
+#     plot = figure(width=1200, height=900,
+#                   title="Line Plot",
+#                   x_axis_label="x", y_axis_label="y")
+#     min_max_values = df_noisefree['x'].agg(['min', 'max'])
+#     plot.x_range = Range1d(min_max_values.iloc[0],
+#                            min_max_values.iloc[1])
+#     for i, column in enumerate(df_noisefree.columns):
+#         if i > 0:
+#             plot.line(df_noisefree.iloc[:, 0], df_noisefree[column],
+#                       line_color=Bokeh5[i],
+#                       legend_label="ideal_"+str(column))
+#     plot.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
+#                  marker='circle', size=5, fill_color='black')
+#     for i, column in enumerate(df_testpoints.columns):
+#         if i > 0:
+#             plot.scatter(df_testpoints.iloc[:, 0], df_testpoints.iloc[:, i],
+#                          marker='circle', size=10,
+#                          fill_color=Bokeh5[i])
+#     plot.legend.location = "top_left"
+#     show(plot)  # type: ignore
+
 def plot_testpoints_with_related_function(df_testdata, df_testpoints,
                                           df_noisefree):
-    output_file("data_diagram.html")
-    plot = figure(width=1200, height=900,
-                  title="Line Plot",
-                  x_axis_label="x", y_axis_label="y")
-    min_max_values = df_noisefree['x'].agg(['min', 'max'])
-    plot.x_range = Range1d(min_max_values.iloc[0],
-                           min_max_values.iloc[1])
+
+    def new_plot():
+        output_file(column+"_data_diagram.html")
+        plot = figure(width=1200, height=900,
+                      title="Line Plot",
+                      x_axis_label="x", y_axis_label="y")
+        min_max_values = df_noisefree['x'].agg(['min', 'max'])
+        plot.x_range = Range1d(min_max_values.iloc[0],
+                               min_max_values.iloc[1])
+        return plot
+
     for i, column in enumerate(df_noisefree.columns):
         if i > 0:
-            plot.line(df_noisefree.iloc[:, 0], df_noisefree[column],
-                      line_color=Bokeh5[i],
-                      legend_label="ideal_"+str(column))
-    plot.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
-                 marker='circle', size=5, fill_color='black')
-    for i in range(1, 5):
-        plot.scatter(df_testpoints.iloc[:, 0], df_testpoints.iloc[:, i],
-                     marker='circle', size=10,
-                     fill_color=Bokeh5[i])
-    plot.legend.location = "top_left"
-    show(plot)  # type: ignore
+            p = new_plot()
+            p.line(df_noisefree.iloc[:, 0], df_noisefree[column],
+                   line_color=Bokeh5[i],
+                   legend_label="ideal_"+str(column))
+            p.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
+                      marker='circle', size=5, fill_color='black')
+            p.scatter(df_testpoints.iloc[:, 0], df_testpoints.iloc[:, i],
+                      marker='circle', size=10,
+                      fill_color=Bokeh5[i])
+            p.legend.location = "top_left"
+            show(p)  # type: ignore

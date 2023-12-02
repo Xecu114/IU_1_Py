@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
 import sqlalchemy as db
+from scipy.spatial.distance import euclidean
 from plot_data import plot_ideal_functions, plot_noisefree_functions, \
     plot_testpoints_with_related_function
 from import_data import import_datasets_to_sqllite_table, import_test_df
@@ -80,6 +81,21 @@ def least_square_regression(df_ideal, df_noisy):
 
 def find_best_fit_for_test_data(df_noisefree, df_test):
 
+    def is_point_nearby():
+        dist = df_noisefree_nox.iloc[(i-2):(i+2), j].apply(
+            lambda x: abs((x - df_test_nox.loc[i, 'y']))).min()
+        # print("----------")
+        # print("dist:", round(dist, 1))
+        # print("x:", df_test.iloc[i, 0])
+        temp_y = df_noisefree_nox.iloc[i, j]
+        dist_min = ((temp_y*np.sqrt(2))-temp_y)
+        if dist_min < 2:
+            dist_min = 2
+        # print("< ...:", round((temp_y*np.sqrt(2))-temp_y, 1))
+        if dist < dist_min:
+            # print("YYY")
+            return True
+
     # transform the df with the noisefree functions to the same size and
     # x values as the test data
     df_noisefree_temp = pd.DataFrame()
@@ -91,8 +107,6 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
                                        == df_test.iloc[i, 0]].index[0]
             df_noisefree_temp.loc[i, str(
                 df_noisefree.columns[j])] = df_noisefree.iloc[x_index, j]
-
-    print(df_noisefree_temp)
 
     df_results = pd.DataFrame()
     df_results.loc[:, 'x'] = df_test.loc[:, 'x']
@@ -106,22 +120,17 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
         c = str(df_noisefree_nox.columns[j])+"_testpoints"
         temp_list = []
         for i in range(len(df_test_nox)):
-            if df_noisefree_nox.iloc[:, j].apply(
-                lambda x: (x - df_test_nox.loc[i, 'y'])**2).min() < \
-                    np.sqrt(2) and (abs(df_test_nox.iloc[i, 0] -
-                                        df_noisefree_nox.iloc[i, j]) < 5):
+            if is_point_nearby():
                 temp_list.append(df_test_nox.loc[i, 'y'])
                 df_results.loc[i, c] = df_test_nox.loc[i, 'y']
                 # print("i:", i)
                 # print("testx:", df_test.iloc[i, 0])
-                # print("testy:", df_test_nox.iloc[i, 0])
+                # print("testy:", df_test_nox.loc[i, 'y'])
                 # print("noisefree_x:", df_noisefree_temp.iloc[i, 0])
                 # print("noisefree_y:", df_noisefree_nox.iloc[i, j])
                 # print("resultx:", df_results.iloc[i, 0])
                 # print("resulty:", df_results.loc[i, c])
         list_results.append(temp_list)
-        # print(f"n={len(temp_list)} bei Funktion
-        # {df_noisefree_nox.columns[j]}")
     return df_results, list_results
 
 
@@ -148,8 +157,7 @@ if __name__ == '__main__':
     test_df = import_test_df(dir_path)
     df_test_cleaned, list_test_cleaned = find_best_fit_for_test_data(
         noisefree_df, test_df)
-    # print(df_test_cleaned)
-    # print(test_df)
+    print(df_test_cleaned)
     plot_testpoints_with_related_function(
         test_df, df_test_cleaned, noisefree_df)
 
@@ -161,6 +169,3 @@ if __name__ == '__main__':
 # print("Arraylänge=", len(ideal_f))  # should be 50
 # for x in range(len(ideal_f)):
 #     print(x, "Spaltenlänge=", len(ideal_f[x]))  # should be 400
-# print("Arraylänge=", len(noisefree_f))  # should be 4
-# for x in range(len(noisefree_f)):
-#     print(x, "Spaltenlänge=", len(noisefree_f[x]))  # should be 400

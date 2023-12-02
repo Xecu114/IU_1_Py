@@ -4,6 +4,18 @@ import numpy as np
 
 def find_best_fit_for_test_data(df_noisefree, df_test):
 
+    def is_point_nearby():
+        dist = abs(df_noisefree_nox.iloc[(i-3):(i+3), j].apply(
+            lambda x: (x - df_test_nox.loc[i, 'y'])).min())
+        print("----------")
+        print("dist:", round(dist, 1))
+        print("x:", df_test.iloc[i, 0])
+        temp_y = df_noisefree_nox.iloc[i, j]
+        print("< ...:", round((temp_y*np.sqrt(2))-temp_y, 1))
+        if dist < ((temp_y*np.sqrt(2))-temp_y):
+            print("YYY")
+            return True
+
     # df_test_temp = pd.DataFrame()
     # df_test_temp.loc[:, 'x'] = df_noisefree.loc[:, 'x']
     # for i in range(len(df_test)):
@@ -44,7 +56,7 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
     c = str(df_noisefree_nox.columns[j])+"_testpoints"
     temp_list = []
     for i in range(len(df_test_nox)):
-
+        #  if (abs(df_test_nox.iloc[i, 0] - df_noisefree_nox.iloc[i, j]) < 5):
         if df_noisefree_nox.iloc[:, j].apply(
                 lambda x: (x - df_test_nox.loc[i, 'y'])**2).min() < np.sqrt(2):
             temp_list.append(df_test_nox.loc[i, 'y'])
