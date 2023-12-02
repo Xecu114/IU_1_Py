@@ -92,4 +92,5 @@ def import_datasets_to_sqllite_table(path):
 
 def import_test_df(path):
     df = pd.read_csv(path+"\\test.csv", header=0)
-    return df.sort_values(by='x')
+    return df.sort_values(by='x').reset_index(drop=True)
+    # drop argument deletes the old index

@@ -1,5 +1,5 @@
 from bokeh.plotting import figure, output_file, show
-from bokeh.palettes import Spectral11
+from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
 
 
@@ -63,5 +63,29 @@ def plot_noisefree_functions(df, train_df):
             plot.line(df.iloc[:, 0], df[column],
                       line_color=Spectral11[i % len(Spectral11)],
                       legend_label="ideal_"+str(column))
+    plot.legend.location = "top_left"
+    show(plot)  # type: ignore
+
+
+def plot_testpoints_with_related_function(df_testdata, df_testpoints,
+                                          df_noisefree):
+    output_file("data_diagram.html")
+    plot = figure(width=1200, height=900,
+                  title="Line Plot",
+                  x_axis_label="x", y_axis_label="y")
+    min_max_values = df_noisefree['x'].agg(['min', 'max'])
+    plot.x_range = Range1d(min_max_values.iloc[0],
+                           min_max_values.iloc[1])
+    for i, column in enumerate(df_noisefree.columns):
+        if i > 0:
+            plot.line(df_noisefree.iloc[:, 0], df_noisefree[column],
+                      line_color=Bokeh5[i],
+                      legend_label="ideal_"+str(column))
+    plot.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
+                 marker='circle', size=5, fill_color='black')
+    for i in range(1, 5):
+        plot.scatter(df_testpoints.iloc[:, 0], df_testpoints.iloc[:, i],
+                     marker='circle', size=10,
+                     fill_color=Bokeh5[i])
     plot.legend.location = "top_left"
     show(plot)  # type: ignore
