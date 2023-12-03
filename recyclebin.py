@@ -16,6 +16,8 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
             print("YYY")
             return True
 
+    """ transform the df with the noisefree functions to the same size and
+    x values as the test data """
     # df_test_temp = pd.DataFrame()
     # df_test_temp.loc[:, 'x'] = df_noisefree.loc[:, 'x']
     # for i in range(len(df_test)):
