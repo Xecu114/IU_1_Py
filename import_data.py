@@ -5,24 +5,31 @@ from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 
-def import_datasets_to_sqllite_table(path):
+def import_csv_to_sqllite_table(csv_path, db_path):
     """_summary_
     1. creates and connects to a new SQLite3 database
     2. defines classes for the sql tables that inherit from the (sqlalchemy)
         base class
-    3. loads train.csv and ideal.csv from the passed path into the
+    3. loads train.csv and ideal.csv from the passed csv_path into the
         tables
     4. queries data back from tables into lists to check them
 
     Args:
-        path (String): pass (relative) path in which the files
+        csv_path (String): pass (relative) path in which the CSV files
             are located
+        db_path (String): pass (relative) path where to create the database
 
     Returns:
         tuple[List[Table_train_csv], List[Table_ideal_csv]]
+
+    Example Usage:
+        import_datasets_to_sqllite_table("myfiles", "/db")
+        or:
+        train_list, ideal_list = import_datasets_to_sqllite_table("myfiles",
+                                                                        "/db")
     """
     # Create an engine that connects to a SQLite database
-    engine = create_engine("sqlite:///"+path+"\\my_db.db", echo=False)
+    engine = create_engine("sqlite:///"+db_path+"\\my_db.db", echo=False)
 
     # Create a base class for declarative class definitions
     Base = declarative_base()
@@ -62,7 +69,7 @@ def import_datasets_to_sqllite_table(path):
     session = Session()
 
     # Read the CSV files and add each row as a new user to the database
-    with open(path+"\\train.csv", newline='') as csvfile:
+    with open(csv_path+"\\train.csv", newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             train_data = Table_train_csv(x=row['x'])
@@ -70,7 +77,7 @@ def import_datasets_to_sqllite_table(path):
                 setattr(train_data, f'y{i}', row[f'y{i}'])
             session.add(train_data)
 
-    with open(path+"\\ideal.csv", newline='') as csvfile:
+    with open(csv_path+"\\ideal.csv", newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             ideal_data = Table_ideal_csv(x=row['x'])
@@ -90,7 +97,20 @@ def import_datasets_to_sqllite_table(path):
     return return_train_list, return_ideal_list
 
 
-def import_test_df(path):
-    df = pd.read_csv(path+"\\test.csv", header=0)
+def import_test_data_from_csv(csv_path):
+    """
+    Imports the "test.csv" file into a pandas DataFrame, then sorts the
+    DataFrame by the 'x' column, and resets the index.
+
+    Parameters:
+        csv_path (str): The path to the CSV file.
+
+    Returns:
+        pandas.DataFrame: The sorted DataFrame with the index reset.
+
+    Example Usage:
+        test_df = import_test_data_from_csv(files_path)
+    """
+    df = pd.read_csv(csv_path+"\\test.csv", header=0)
     return df.sort_values(by='x').reset_index(drop=True)
     # drop argument deletes the old index
