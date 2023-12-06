@@ -1,6 +1,5 @@
 # import modules
 import csv
-import pandas as pd
 from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.orm import sessionmaker, declarative_base
 
@@ -95,22 +94,3 @@ def import_csv_to_sqllite_table(csv_path, db_path):
     # Close session
     session.close()
     return return_train_list, return_ideal_list
-
-
-def import_test_data_from_csv(csv_path):
-    """
-    Imports the "test.csv" file into a pandas DataFrame, then sorts the
-    DataFrame by the 'x' column, and resets the index.
-
-    Parameters:
-        csv_path (str): The path to the CSV file.
-
-    Returns:
-        pandas.DataFrame: The sorted DataFrame with the index reset.
-
-    Example Usage:
-        test_df = import_test_data_from_csv(files_path)
-    """
-    df = pd.read_csv(csv_path+"\\test.csv", header=0)
-    return df.sort_values(by='x').reset_index(drop=True)
-    # drop argument deletes the old index

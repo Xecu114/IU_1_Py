@@ -4,8 +4,7 @@ from scipy.optimize import least_squares
 import sqlalchemy as db
 from plot_data import plot_ideal_functions, plot_noisefree_functions, \
     plot_testpoints_with_related_function
-from import_data import import_csv_to_sqllite_table, \
-    import_test_data_from_csv
+from import_data import import_csv_to_sqllite_table
 import os
 import logging
 
@@ -190,6 +189,7 @@ if __name__ == '__main__':
     files_path = "Python_Course_IU"
     db_path = files_path + "/db"
     db_name = "my_db"
+    td_filename = "test.csv"
     if os.path.exists(f"{db_path}/{db_name}.db"):
         os.remove(f"{db_path}/{db_name}.db")
     elif not os.path.exists(db_path):
@@ -217,7 +217,8 @@ if __name__ == '__main__':
         noisefree_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
     # plot_noisefree_functions(noisefree_df, train_df)
 
-    test_df = import_test_data_from_csv(files_path)
+    test_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
+    test_df.sort_values(by='x').reset_index(drop=True)
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, test_df)
     logging.debug(f"df_test_cleaned:\n{functions_testdp_df}")
