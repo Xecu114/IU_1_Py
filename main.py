@@ -7,6 +7,9 @@ from plot_data import plot_ideal_functions, plot_noisefree_functions, \
 from import_data import import_csv_to_sqllite_table, \
     import_test_data_from_csv
 import os
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def get_datasets_from_sql_database(path, db_name, db_table_name):
@@ -144,21 +147,43 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
         dist_min = ((temp_y*1.2)-temp_y)  # type: ignore
         if dist_min < 2:
             dist_min = 2
-        if dist < dist_min:
-            return True
-        else:
-            return False
+        return dist, (dist < dist_min)
 
     results_df = pd.DataFrame()
     results_df.loc[:, 'x'] = df_test.loc[:, 'x']
+    fitted_testdp_df = df_test
+    fitted_testdp_df['Delta Y (Deviation)'] = ''
+    fitted_testdp_df['Nr. of the ideal function'] = ''
 
     for j in range(len(df_noisefree.columns)):
         if j > 0:
             c = str(df_noisefree.columns[j])+"_testpoints"
             for i in range(len(df_test)):
-                if is_point_nearby(df_noisefree, df_test.loc[i, 'y']):
+                delta_y, is_nearby = is_point_nearby(
+                    df_noisefree, df_test.loc[i, 'y'])
+                if is_nearby:
                     results_df.loc[i, c] = df_test.loc[i, 'y']
-    return results_df
+
+                    # store every matching function
+                    if fitted_testdp_df.iloc[i, 3] == '':
+                        fitted_testdp_df.iloc[i, 2] = \
+                            str(round(delta_y, 3))
+                        fitted_testdp_df.iloc[i, 3] = \
+                            str(df_noisefree.columns[j])
+                    else:
+                        fitted_testdp_df.iloc[i, 2] = \
+                            fitted_testdp_df.iloc[i, 2] + ', ' +\
+                            str(round(delta_y, 3))
+                        fitted_testdp_df.iloc[i, 3] = \
+                            fitted_testdp_df.iloc[i, 3] + ', ' + \
+                            str(df_noisefree.columns[j])
+
+    fitted_testdp_df['Nr. of the ideal function'].replace(
+        '', '-', inplace=True)
+    fitted_testdp_df['Delta Y (Deviation)'].replace(
+        '', '-', inplace=True)
+    logging.debug(f"fitted_testdp_df:\n{fitted_testdp_df}")
+    return results_df, fitted_testdp_df
 
 
 if __name__ == '__main__':
@@ -193,8 +218,9 @@ if __name__ == '__main__':
     # plot_noisefree_functions(noisefree_df, train_df)
 
     test_df = import_test_data_from_csv(files_path)
-    df_test_cleaned = find_best_fit_for_test_data(
+    functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, test_df)
+    logging.debug(f"df_test_cleaned:\n{functions_testdp_df}")
     # plot_testpoints_with_related_function(
     #     test_df, df_test_cleaned, noisefree_df)
-    print("success")
+    logging.debug("success")
