@@ -109,3 +109,23 @@ import numpy as np
 #                          fill_color=Bokeh5[i])
 #     plot.legend.location = "top_left"
 #     show(plot)  # type: ignore
+
+
+# # store every matching function
+# if fitted_testdp_df.iloc[i, 3] == '':
+#     fitted_testdp_df.iloc[i, 2] = \
+#         str(round(delta_y, 3))
+#     fitted_testdp_df.iloc[i, 3] = \
+#         str(df_noisefree.columns[j])
+# else:
+#     fitted_testdp_df.iloc[i, 2] = \
+#         fitted_testdp_df.iloc[i, 2] + ', ' +\
+#         str(round(delta_y, 3))
+#     fitted_testdp_df.iloc[i, 3] = \
+#         fitted_testdp_df.iloc[i, 3] + ', ' + \
+#         str(df_noisefree.columns[j])
+#
+# fitted_testdp_df['Nr. of the ideal function'].replace(
+#     '', '-', inplace=True)
+# fitted_testdp_df['Delta Y (Deviation)'].replace(
+#     '', '-', inplace=True)

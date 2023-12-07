@@ -1,48 +1,18 @@
 import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
-import sqlalchemy as db
 from plot_data import plot_ideal_functions, plot_noisefree_functions, \
-    plot_testpoints_with_related_function
-from import_data import import_csv_to_sqllite_table
+    plot_nf_funcs_w_tps
+from data_handler import transfer_csv_to_sqllite_table, \
+    get_dataframe_from_sql_table
 import os
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
 files_path = 'Python_Course_IU'
-db_path = files_path + '/db'
-db_name = 'my_db'
+my_db_path = files_path + '/db/my_db.db'
 td_filename = 'test.csv'
-
-
-def get_datasets_from_sql_database(path, db_name, db_table_name):
-    '''
-    Retrieves a dataset from an SQL database and returns it
-    as a pandas.DataFrames.
-
-    Args:
-        path (str): The path to the SQL database file.
-        db_name (str): The name of the sqlite database.
-        db_table_name (str): The name of the table.
-
-    Returns:
-        pandas.Dataframe: A Dataframe containing the data
-            from the database table.
-
-    Example Usage:
-        train_df = get_datasets_from_sql_database(files_path,
-                                            db_name, 'train_data')
-    '''
-
-    # Create a connection to the SQLite database
-    engine = db.create_engine(f'sqlite:///{path}/{db_name}.db', echo=True)
-    connection = engine.connect()
-    # Query the databases and store the results in a pandas dataframe
-    df = pd.read_sql_query(f'SELECT * FROM {db_table_name}', connection)
-    # Close the database connection
-    connection.close()
-    return df
 
 
 def least_square_regression(df_ideal, df_noisy):
@@ -142,15 +112,16 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
         x_index = function_df.loc[function_df['x']
                                   == df_test.iloc[i, 0]].index[0]
         if i < 10:
-            dist = function_df.iloc[x_index:(x_index+10), j].apply(
+            dist = function_df.iloc[x_index:(x_index+2), j].apply(
                 lambda x: abs((x - testpoint))).min()
         else:
-            dist = function_df.iloc[(x_index-10):(x_index+10), j].apply(
+            dist = function_df.iloc[(x_index-2):(x_index+2), j].apply(
                 lambda x: abs((x - testpoint))).min()
         temp_y = function_df.iloc[x_index, j]
-        dist_min = ((temp_y*1.2)-temp_y)  # type: ignore
-        if dist_min < 2:
-            dist_min = 2
+        dist_min = ((temp_y*1.3)-temp_y)  # type: ignore
+        logging.debug(dist_min)
+        if dist_min < 0.5:
+            dist_min = 0.5
         return dist, (dist < dist_min)
 
     results_df = pd.DataFrame()
@@ -175,6 +146,13 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
                         fitted_testdp_df.iloc[i, 3] = \
                             str(df_noisefree.columns[j])
                     else:
+                        # choose best match by comparing the distances
+                        # if delta_y < fitted_testdp_df.iloc[i, 2]:
+                        #     fitted_testdp_df.iloc[i, 2] = \
+                        #         round(delta_y, 3)
+                        #     fitted_testdp_df.iloc[i, 3] = \
+                        #         str(df_noisefree.columns[j])
+
                         fitted_testdp_df.iloc[i, 2] = \
                             fitted_testdp_df.iloc[i, 2] + ', ' +\
                             str(round(delta_y, 3))
@@ -191,17 +169,17 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
 
 
 if __name__ == '__main__':
-    if os.path.exists(f'{db_path}/{db_name}.db'):
-        os.remove(f'{db_path}/{db_name}.db')
-    elif not os.path.exists(db_path):
-        os.makedirs(db_path)
+    if os.path.exists(f'{my_db_path}'):
+        os.remove(f'{my_db_path}')
+    elif not os.path.exists(my_db_path):
+        os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
-    import_csv_to_sqllite_table(files_path, db_path)
+    transfer_csv_to_sqllite_table(files_path, my_db_path)
 
-    train_df = get_datasets_from_sql_database(
-        files_path, db_name, 'train_data')
-    ideal_df = get_datasets_from_sql_database(
-        files_path, db_name, 'ideal_data')
+    train_df = get_dataframe_from_sql_table(
+        my_db_path, 'train_data')
+    ideal_df = get_dataframe_from_sql_table(
+        my_db_path, 'ideal_data')
 
     # plot_ideal_functions(ideal_df)
 
@@ -218,11 +196,11 @@ if __name__ == '__main__':
         noisefree_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
     # plot_noisefree_functions(noisefree_df, train_df)
 
-    test_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
-    test_df.sort_values(by='x').reset_index(drop=True)
+    testdp_temp_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
+    testdp_df = testdp_temp_df.sort_values(by='x').reset_index(drop=True)
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
-        noisefree_df, test_df)
+        noisefree_df, testdp_df)
     logging.debug(f'df_test_cleaned:\n{functions_testdp_df}')
-    plot_testpoints_with_related_function(
-        test_df, functions_testdp_df, noisefree_df)
+    plot_nf_funcs_w_tps(
+        testdp_df, functions_testdp_df, noisefree_df)
     logging.debug('success')

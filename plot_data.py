@@ -84,9 +84,9 @@ def plot_noisefree_functions(df, train_df):
     show(plot)  # type: ignore
 
 
-def plot_testpoints_with_related_function(df_testdata,
-                                          df_testpoints,
-                                          df_noisefree):
+def plot_nf_funcs_w_tps(df_testdata,
+                        df_testpoints,
+                        df_noisefree):
     '''
     Plot test points with related function.
     This function takes three DataFrames as input and creates line plots
@@ -111,7 +111,7 @@ def plot_testpoints_with_related_function(df_testdata,
             test_df, df_test_cleaned, noisefree_df)
     '''
 
-    def new_plot():
+    def new_plot_for_each_func():
         output_file(column+'_data_diagram.html')
         plot = figure(width=1200, height=900,
                       title='Line Plot',
@@ -124,7 +124,7 @@ def plot_testpoints_with_related_function(df_testdata,
     # temp_df = df_testpoints.drop('y', axis=1, inplace=False)
     for i, column in enumerate(df_noisefree.columns):
         if i > 0:
-            p = new_plot()
+            p = new_plot_for_each_func()
             p.line(df_noisefree.iloc[:, 0], df_noisefree[column],
                    line_color=Bokeh5[i],
                    legend_label='ideal_'+str(column))

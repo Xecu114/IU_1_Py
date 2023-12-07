@@ -2,9 +2,10 @@
 import csv
 from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.orm import sessionmaker, declarative_base
+import pandas as pd
 
 
-def import_csv_to_sqllite_table(csv_path, db_path):
+def transfer_csv_to_sqllite_table(csv_path, db_path):
     '''_summary_
     1. creates and connects to a new SQLite3 database
     2. defines classes for the sql tables that inherit from the (sqlalchemy)
@@ -28,7 +29,7 @@ def import_csv_to_sqllite_table(csv_path, db_path):
                                                                         '/db')
     '''
     # Create an engine that connects to a SQLite database
-    engine = create_engine('sqlite:///'+db_path+'\\my_db.db', echo=False)
+    engine = create_engine(f'sqlite:///{db_path}', echo=False)
 
     # Create a base class for declarative class definitions
     Base = declarative_base()
@@ -94,3 +95,40 @@ def import_csv_to_sqllite_table(csv_path, db_path):
     # Close session
     session.close()
     return return_train_list, return_ideal_list
+
+
+def get_dataframe_from_sql_table(db_path, db_table_name):
+    '''
+    Retrieves a dataset from an SQL database and returns it
+    as a pandas.DataFrames.
+
+    Args:
+        path (str): The path to the SQL database file.
+        db_name (str): The name of the sqlite database.
+        db_table_name (str): The name of the table.
+
+    Returns:
+        pandas.Dataframe: A Dataframe containing the data
+            from the database table.
+
+    Example Usage:
+        train_df = get_datasets_from_sql_database(files_path,
+                                            db_name, 'train_data')
+    '''
+
+    # Create a connection to the SQLite database
+    engine = create_engine(f'sqlite:///{db_path}', echo=False)
+    connection = engine.connect()
+    # Query the databases and store the results in a pandas dataframe
+    df = pd.read_sql_query(f'SELECT * FROM {db_table_name}', connection)
+    # Close the database connection
+    connection.close()
+    return df
+
+
+def fitted_testdata_to_sql(db_path):
+    # Create an engine that connects to a SQLite database
+    engine = create_engine(f'sqlite:///{db_path}', echo=False)
+
+    # Create a base class for declarative class definitions
+    Base = declarative_base()
