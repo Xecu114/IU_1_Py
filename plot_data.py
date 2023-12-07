@@ -5,15 +5,15 @@ import numpy as np
 
 
 def plot_ideal_functions(ideal_df):
-    """
+    '''
     Generates line charts representing all columns of the DataFrame using the
     Bokeh library. Each column is displayed in a different color and given
-    its own label. Because the "ideal" dataset is so big, it is divided
+    its own label. Because the 'ideal' dataset is so big, it is divided
     into 5 seperate DataFrames that each contain 10 functions
 
     Args:
         ideal_df (_type_): DataFrame containing the whole set of
-            "ideal" functions as columns with following shape:
+            'ideal' functions as columns with following shape:
             [400 r x 51 c]
 
     Returns:
@@ -21,8 +21,8 @@ def plot_ideal_functions(ideal_df):
 
     Example Usage:
         plot_ideal_functions(ideal_df)
-    """
-    output_file("ideal_data_diagram.html")
+    '''
+    output_file('ideal_data_diagram.html')
 
     # split the ideal DataFrame into 5 DataFrames with 10 functions each
     # dfs = [ideal_df.iloc[:, i:i+10] for i in range(1, 50, 10)]
@@ -31,26 +31,26 @@ def plot_ideal_functions(ideal_df):
 
     for df in dfs:
         plot = figure(width=1200, height=900,
-                      title="ideal.csv Line Plot" + str(df.index),
-                      x_axis_label="x", y_axis_label="y")
+                      title='ideal.csv Line Plot' + str(df.index),
+                      x_axis_label='x', y_axis_label='y')
         min_max_values = ideal_df['x'].agg(['min', 'max'])
         plot.x_range = Range1d(min_max_values.iloc[0], min_max_values.iloc[1])
         for i, column in enumerate(df.columns):
             plot.line(ideal_df.iloc[:, 0], df[column],
                       line_color=Spectral11[i % len(Spectral11)],
                       legend_label=str(column))
-        plot.legend.location = "top_left"
+        plot.legend.location = 'top_left'
         show(plot)  # type: ignore
 
 
 def plot_noisefree_functions(df, train_df):
-    """
+    '''
     Generates a line plot of two sets of data using the Bokeh library.
     The first set of data is the new ideal functions that match the noisy
     train functions, which are the second set of data.
 
     Args:
-        df (DataFrame): The DataFrame containing the ideal or "noisefree"
+        df (DataFrame): The DataFrame containing the ideal or 'noisefree'
             data. It should contain at the the column 'x' and one column
             for each of the four functions.
         train_df (DataFrame): A subset of the main DataFrame containing the
@@ -62,11 +62,11 @@ def plot_noisefree_functions(df, train_df):
 
     Example Usage:
         plot_noisefree_functions(noisefree_df, train_df)
-    """
-    output_file("noisefree_data_diagram.html")
+    '''
+    output_file('noisefree_data_diagram.html')
     plot = figure(width=1200, height=900,
-                  title="Noisefree Functions Line Plot",
-                  x_axis_label="x", y_axis_label="y")
+                  title='Noisefree Functions Line Plot',
+                  x_axis_label='x', y_axis_label='y')
     min_max_values = df['x'].agg(['min', 'max'])
     plot.x_range = Range1d(min_max_values.iloc[0],
                            min_max_values.iloc[1])
@@ -74,23 +74,23 @@ def plot_noisefree_functions(df, train_df):
         if i > 0:
             plot.line(train_df.iloc[:, 0], train_df[column],
                       line_color=Spectral11[i % len(Spectral11)],
-                      legend_label="train_"+str(column))
+                      legend_label='train_'+str(column))
     for i, column in enumerate(df.columns):
         if i > 0:
             plot.line(df.iloc[:, 0], df[column],
                       line_color=Spectral11[i % len(Spectral11)],
-                      legend_label="ideal_"+str(column))
-    plot.legend.location = "top_left"
+                      legend_label='ideal_'+str(column))
+    plot.legend.location = 'top_left'
     show(plot)  # type: ignore
 
 
 def plot_testpoints_with_related_function(df_testdata,
                                           df_testpoints,
                                           df_noisefree):
-    """
+    '''
     Plot test points with related function.
     This function takes three DataFrames as input and creates line plots
-    from the "df_noisefree" and scatter plots using the data from the
+    from the 'df_noisefree' and scatter plots using the data from the
     test point DataFrames. One shows all test points and one only the
     one that are nearby an ideal function. The plots are displayed using
     the Bokeh library.
@@ -109,13 +109,13 @@ def plot_testpoints_with_related_function(df_testdata,
     Example Usage:
         plot_testpoints_with_related_function(
             test_df, df_test_cleaned, noisefree_df)
-    """
+    '''
 
     def new_plot():
-        output_file(column+"_data_diagram.html")
+        output_file(column+'_data_diagram.html')
         plot = figure(width=1200, height=900,
-                      title="Line Plot",
-                      x_axis_label="x", y_axis_label="y")
+                      title='Line Plot',
+                      x_axis_label='x', y_axis_label='y')
         min_max_values = df_noisefree['x'].agg(['min', 'max'])
         plot.x_range = Range1d(min_max_values.iloc[0],
                                min_max_values.iloc[1])
@@ -127,11 +127,11 @@ def plot_testpoints_with_related_function(df_testdata,
             p = new_plot()
             p.line(df_noisefree.iloc[:, 0], df_noisefree[column],
                    line_color=Bokeh5[i],
-                   legend_label="ideal_"+str(column))
+                   legend_label='ideal_'+str(column))
             p.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
                       marker='circle', size=5, fill_color='black')
             p.scatter(df_testpoints.iloc[:, 0], df_testpoints.iloc[:, i],
                       marker='circle', size=10,
                       fill_color=Bokeh5[i])
-            p.legend.location = "top_left"
+            p.legend.location = 'top_left'
             show(p)  # type: ignore

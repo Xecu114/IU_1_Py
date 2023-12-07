@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 
 def import_csv_to_sqllite_table(csv_path, db_path):
-    """_summary_
+    '''_summary_
     1. creates and connects to a new SQLite3 database
     2. defines classes for the sql tables that inherit from the (sqlalchemy)
         base class
@@ -22,18 +22,18 @@ def import_csv_to_sqllite_table(csv_path, db_path):
         tuple[List[Table_train_csv], List[Table_ideal_csv]]
 
     Example Usage:
-        import_datasets_to_sqllite_table("myfiles", "/db")
+        import_datasets_to_sqllite_table('myfiles', '/db')
         or:
-        train_list, ideal_list = import_datasets_to_sqllite_table("myfiles",
-                                                                        "/db")
-    """
+        train_list, ideal_list = import_datasets_to_sqllite_table('myfiles',
+                                                                        '/db')
+    '''
     # Create an engine that connects to a SQLite database
-    engine = create_engine("sqlite:///"+db_path+"\\my_db.db", echo=False)
+    engine = create_engine('sqlite:///'+db_path+'\\my_db.db', echo=False)
 
     # Create a base class for declarative class definitions
     Base = declarative_base()
 
-    # Define a class for the table for the "train.csv" data that inherits from
+    # Define a class for the table for the 'train.csv' data that inherits from
     # base class
     class Table_train_csv(Base):
         __tablename__ = 'train_data'
@@ -43,10 +43,10 @@ def import_csv_to_sqllite_table(csv_path, db_path):
             locals()[f'y{i}'] = Column(Float)
 
         def __repr__(self):
-            return f"train_data(x={self.x}, y1={self.y1}, y2={self.y2},"\
-                f" y3={self.y3}, y4={self.y4})"
+            return f'train_data(x={self.x}, y1={self.y1}, y2={self.y2},'\
+                f' y3={self.y3}, y4={self.y4})'
 
-    # Define a class for the table for the "ideal.csv" data that inherits from
+    # Define a class for the table for the 'ideal.csv' data that inherits from
     # base class
     class Table_ideal_csv(Base):
         __tablename__ = 'ideal_data'
@@ -56,7 +56,7 @@ def import_csv_to_sqllite_table(csv_path, db_path):
             locals()[f'y{i}'] = Column(Float)
 
         def __repr__(self):
-            return f"ideal_data(x={self.x}, y1={self.y1},..., y50={self.y50}"
+            return f'ideal_data(x={self.x}, y1={self.y1},..., y50={self.y50}'
 
     # Create the tables in the database
     Base.metadata.create_all(engine)
@@ -68,7 +68,7 @@ def import_csv_to_sqllite_table(csv_path, db_path):
     session = Session()
 
     # Read the CSV files and add each row as a new user to the database
-    with open(csv_path+"\\train.csv", newline='') as csvfile:
+    with open(csv_path+'\\train.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             train_data = Table_train_csv(x=row['x'])
@@ -76,7 +76,7 @@ def import_csv_to_sqllite_table(csv_path, db_path):
                 setattr(train_data, f'y{i}', row[f'y{i}'])
             session.add(train_data)
 
-    with open(csv_path+"\\ideal.csv", newline='') as csvfile:
+    with open(csv_path+'\\ideal.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             ideal_data = Table_ideal_csv(x=row['x'])

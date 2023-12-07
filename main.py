@@ -10,9 +10,14 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+files_path = 'Python_Course_IU'
+db_path = files_path + '/db'
+db_name = 'my_db'
+td_filename = 'test.csv'
+
 
 def get_datasets_from_sql_database(path, db_name, db_table_name):
-    """
+    '''
     Retrieves a dataset from an SQL database and returns it
     as a pandas.DataFrames.
 
@@ -27,21 +32,21 @@ def get_datasets_from_sql_database(path, db_name, db_table_name):
 
     Example Usage:
         train_df = get_datasets_from_sql_database(files_path,
-                                            db_name, "train_data")
-    """
+                                            db_name, 'train_data')
+    '''
 
     # Create a connection to the SQLite database
-    engine = db.create_engine(f"sqlite:///{path}/{db_name}.db", echo=True)
+    engine = db.create_engine(f'sqlite:///{path}/{db_name}.db', echo=True)
     connection = engine.connect()
     # Query the databases and store the results in a pandas dataframe
-    df = pd.read_sql_query(f"SELECT * FROM {db_table_name}", connection)
+    df = pd.read_sql_query(f'SELECT * FROM {db_table_name}', connection)
     # Close the database connection
     connection.close()
     return df
 
 
 def least_square_regression(df_ideal, df_noisy):
-    """
+    '''
     Apply least squares regression to find the best fitting function in the
     ideal dataset for each function in the noisy dataset.
 
@@ -55,7 +60,7 @@ def least_square_regression(df_ideal, df_noisy):
         numpy array: An array containing the indices of the best fitting
             functions in the ideal dataset for each function in the noisy
             dataset. Array shape: (4, 2)
-    """
+    '''
 
     # Define a function, that calculates the sum of the squared deviations
     def residuals(p, y, x):
@@ -96,7 +101,7 @@ def least_square_regression(df_ideal, df_noisy):
 
 
 def find_best_fit_for_test_data(df_noisefree, df_test):
-    """
+    '''
     Finds the which test data points is nearby one of the four
     noise-free / ideal functions.
 
@@ -113,13 +118,13 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
             nearby the four ideal functions. The DataFrame has the same x
             values as df_test and one column for each ideal function
             containing the points that fitted to this function. The columns
-            are named after the ideal function with "_testpoints" appended
+            are named after the ideal function with '_testpoints' appended
             to the column name.
             shape: (100r x 5c)
-    """
+    '''
 
     def is_point_nearby(function_df, testpoint):
-        """
+        '''
         Check if a given test point is nearby a specific function
         in the dataset (pandas.DataFrame).
 
@@ -131,7 +136,7 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
         Returns:
         Boolean: Value indicating whether the test point is nearby the
             function.
-        """
+        '''
 
         # get the index of the x position in the 400 row DataFrames
         x_index = function_df.loc[function_df['x']
@@ -156,7 +161,7 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
 
     for j in range(len(df_noisefree.columns)):
         if j > 0:
-            c = str(df_noisefree.columns[j])+"_testpoints"
+            c = str(df_noisefree.columns[j])+'_testpoints'
             for i in range(len(df_test)):
                 delta_y, is_nearby = is_point_nearby(
                     df_noisefree, df_test.loc[i, 'y'])
@@ -181,34 +186,30 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
         '', '-', inplace=True)
     fitted_testdp_df['Delta Y (Deviation)'].replace(
         '', '-', inplace=True)
-    logging.debug(f"fitted_testdp_df:\n{fitted_testdp_df}")
+    logging.debug(f'fitted_testdp_df:\n{fitted_testdp_df}')
     return results_df, fitted_testdp_df
 
 
 if __name__ == '__main__':
-    files_path = "Python_Course_IU"
-    db_path = files_path + "/db"
-    db_name = "my_db"
-    td_filename = "test.csv"
-    if os.path.exists(f"{db_path}/{db_name}.db"):
-        os.remove(f"{db_path}/{db_name}.db")
+    if os.path.exists(f'{db_path}/{db_name}.db'):
+        os.remove(f'{db_path}/{db_name}.db')
     elif not os.path.exists(db_path):
         os.makedirs(db_path)
 
     import_csv_to_sqllite_table(files_path, db_path)
 
     train_df = get_datasets_from_sql_database(
-        files_path, db_name, "train_data")
+        files_path, db_name, 'train_data')
     ideal_df = get_datasets_from_sql_database(
-        files_path, db_name, "ideal_data")
+        files_path, db_name, 'ideal_data')
 
     # plot_ideal_functions(ideal_df)
 
     noisefree_funcs_index = least_square_regression(
         ideal_df, train_df)  # noisefree_funcs_index has a (4, 2) shape
 
-    # create df with the 4 new "ideal" functions instead of
-    # the 4 noisy functions from the "train" dataset
+    # create df with the 4 new 'ideal' functions instead of
+    # the 4 noisy functions from the 'train' dataset
     noisefree_df = pd.DataFrame(
         columns=['x'], index=range(400))
     noisefree_df['x'] = ideal_df.iloc[:, 0]
@@ -221,7 +222,7 @@ if __name__ == '__main__':
     test_df.sort_values(by='x').reset_index(drop=True)
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, test_df)
-    logging.debug(f"df_test_cleaned:\n{functions_testdp_df}")
-    # plot_testpoints_with_related_function(
-    #     test_df, df_test_cleaned, noisefree_df)
-    logging.debug("success")
+    logging.debug(f'df_test_cleaned:\n{functions_testdp_df}')
+    plot_testpoints_with_related_function(
+        test_df, functions_testdp_df, noisefree_df)
+    logging.debug('success')
