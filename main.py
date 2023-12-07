@@ -4,7 +4,7 @@ from scipy.optimize import least_squares
 from plot_data import plot_ideal_functions, plot_noisefree_functions, \
     plot_nf_funcs_w_tps
 from data_handler import transfer_csv_to_sqllite_table, \
-    get_dataframe_from_sql_table
+    get_dataframe_from_sql_table, fitted_testdata_to_sql
 import os
 import logging
 
@@ -67,29 +67,40 @@ def least_square_regression(df_ideal, df_noisy):
         noise_free_functions[j, 0] = j+1
         noise_free_functions[j, 1] = int(result[0, 0])
 
+    logging.debug('least_square_regression - done')
     return noise_free_functions
 
 
 def find_best_fit_for_test_data(df_noisefree, df_test):
     '''
-    Finds the which test data points is nearby one of the four
-    noise-free / ideal functions.
+    Checks to which of the four noise-free / ideal functions each test
+    datapoint can be approximated.
 
     Args:
-        df_noisefree (pandas DataFrame): The DataFrame contains the four
-            noise-free / ideal functions with their x and y values.
+        df_noisefree (pandas DataFrame): The DataFrame needs to contain the
+            four noise-free / ideal functions with their x and y values.
             shape: (400r x 5c)
-        df_test (pandas DataFrame): The DataFrame contains the test points
-            with their x and y values.
+        df_test (pandas DataFrame): The DataFrame needs to contain the test
+            points with their x and y values.
             shape: (100r x 2c)
 
     Returns:
-        pandas.DataFrame: The DataFrame contains the test points that are
+        results_df (pandas.DataFrame):
+            The DataFrame contains the test points that are
             nearby the four ideal functions. The DataFrame has the same x
             values as df_test and one column for each ideal function
             containing the points that fitted to this function. The columns
             are named after the ideal function with '_testpoints' appended
             to the column name.
+            shape: (100r x 5c)
+        fitted_testdp_df (pandas.DataFrame):
+            The DataFrame extends the original test data DataFrame
+            by 3 columns:
+
+            "Delta Y (Deviation)": shows the distance to the nearest function
+            "Nr. of the ideal function": shows the name of the nearest function
+            "Nr. of all fitting functions": shows the names of all functions,
+                that are nearby
             shape: (100r x 5c)
     '''
 
@@ -119,7 +130,6 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
                 lambda x: abs((x - testpoint))).min()
         temp_y = function_df.iloc[x_index, j]
         dist_min = ((temp_y*1.3)-temp_y)  # type: ignore
-        logging.debug(dist_min)
         if dist_min < 0.5:
             dist_min = 0.5
         return dist, (dist < dist_min)
@@ -127,8 +137,9 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
     results_df = pd.DataFrame()
     results_df.loc[:, 'x'] = df_test.loc[:, 'x']
     fitted_testdp_df = df_test
-    fitted_testdp_df['Delta Y (Deviation)'] = ''
-    fitted_testdp_df['Nr. of the ideal function'] = ''
+    fitted_testdp_df['Delta Y (Deviation)'] = np.NaN
+    fitted_testdp_df['Nr. of the ideal function'] = '-'
+    fitted_testdp_df['Nr. of all fitting functions'] = ''
 
     for j in range(len(df_noisefree.columns)):
         if j > 0:
@@ -140,37 +151,40 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
                     results_df.loc[i, c] = df_test.loc[i, 'y']
 
                     # store every matching function
-                    if fitted_testdp_df.iloc[i, 3] == '':
+                    if fitted_testdp_df.iloc[i, 4] == '':
                         fitted_testdp_df.iloc[i, 2] = \
-                            str(round(delta_y, 3))
+                            round(delta_y, 3)
                         fitted_testdp_df.iloc[i, 3] = \
+                            str(df_noisefree.columns[j])
+                        fitted_testdp_df.iloc[i, 4] = \
                             str(df_noisefree.columns[j])
                     else:
-                        # choose best match by comparing the distances
-                        # if delta_y < fitted_testdp_df.iloc[i, 2]:
-                        #     fitted_testdp_df.iloc[i, 2] = \
-                        #         round(delta_y, 3)
-                        #     fitted_testdp_df.iloc[i, 3] = \
-                        #         str(df_noisefree.columns[j])
+                        # fitted_testdp_df.iloc[i, 2] = \
+                        #     fitted_testdp_df.iloc[i, 2] + ', ' +\
+                        #     str(round(delta_y, 3))
 
-                        fitted_testdp_df.iloc[i, 2] = \
-                            fitted_testdp_df.iloc[i, 2] + ', ' +\
-                            str(round(delta_y, 3))
-                        fitted_testdp_df.iloc[i, 3] = \
-                            fitted_testdp_df.iloc[i, 3] + ', ' + \
+                        # choose best match by comparing the distances
+                        if delta_y < fitted_testdp_df.iloc[i, 2]:
+                            fitted_testdp_df.iloc[i, 2] = \
+                                round(delta_y, 3)
+                            fitted_testdp_df.iloc[i, 3] = \
+                                str(df_noisefree.columns[j])
+
+                        fitted_testdp_df.iloc[i, 4] = \
+                            fitted_testdp_df.iloc[i, 4] + ', ' + \
                             str(df_noisefree.columns[j])
 
-    fitted_testdp_df['Nr. of the ideal function'].replace(
+    # fitted_testdp_df['Delta Y (Deviation)'].replace(
+    #     '', '-', inplace=True)
+    fitted_testdp_df['Nr. of all fitting functions'].replace(
         '', '-', inplace=True)
-    fitted_testdp_df['Delta Y (Deviation)'].replace(
-        '', '-', inplace=True)
-    logging.debug(f'fitted_testdp_df:\n{fitted_testdp_df}')
+    logging.debug('find_best_fit_for_test_data - done')
     return results_df, fitted_testdp_df
 
 
 if __name__ == '__main__':
-    if os.path.exists(f'{my_db_path}'):
-        os.remove(f'{my_db_path}')
+    if os.path.exists(my_db_path):
+        os.remove(my_db_path)
     elif not os.path.exists(my_db_path):
         os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
@@ -194,13 +208,13 @@ if __name__ == '__main__':
     for i in range(4):
         row_nr = noisefree_funcs_index[i, 1]
         noisefree_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
-    # plot_noisefree_functions(noisefree_df, train_df)
+    plot_noisefree_functions(noisefree_df, train_df)
 
     testdp_temp_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
     testdp_df = testdp_temp_df.sort_values(by='x').reset_index(drop=True)
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, testdp_df)
-    logging.debug(f'df_test_cleaned:\n{functions_testdp_df}')
-    plot_nf_funcs_w_tps(
-        testdp_df, functions_testdp_df, noisefree_df)
+    # plot_nf_funcs_w_tps(
+    #     testdp_df, functions_testdp_df, noisefree_df, table3_df)
+    fitted_testdata_to_sql(my_db_path, table3_df)
     logging.debug('success')

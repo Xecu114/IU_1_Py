@@ -2,6 +2,9 @@ from bokeh.plotting import figure, output_file, show
 from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
 import numpy as np
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def plot_ideal_functions(ideal_df):
@@ -86,7 +89,8 @@ def plot_noisefree_functions(df, train_df):
 
 def plot_nf_funcs_w_tps(df_testdata,
                         df_testpoints,
-                        df_noisefree):
+                        df_noisefree,
+                        df_table3):
     '''
     Plot test points with related function.
     This function takes three DataFrames as input and creates line plots
@@ -114,7 +118,7 @@ def plot_nf_funcs_w_tps(df_testdata,
     def new_plot_for_each_func():
         output_file(column+'_data_diagram.html')
         plot = figure(width=1200, height=900,
-                      title='Line Plot',
+                      title=column+' with all fitting points',
                       x_axis_label='x', y_axis_label='y')
         min_max_values = df_noisefree['x'].agg(['min', 'max'])
         plot.x_range = Range1d(min_max_values.iloc[0],
@@ -135,3 +139,27 @@ def plot_nf_funcs_w_tps(df_testdata,
                       fill_color=Bokeh5[i])
             p.legend.location = 'top_left'
             show(p)  # type: ignore
+
+    # create one plot with all funcs and points
+    output_file('Table3_data_diagram.html')
+    p2 = figure(width=1200, height=900,
+                title='all Testpoints with the ideal functions',
+                x_axis_label='x', y_axis_label='y')
+    min_max_values = df_noisefree['x'].agg(['min', 'max'])
+    p2.x_range = Range1d(min_max_values.iloc[0],
+                         min_max_values.iloc[1])
+    p2.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
+               marker='circle', size=5, fill_color='black')
+    for i, column in enumerate(df_noisefree.columns):
+        if i > 0:
+            p2.line(df_noisefree.iloc[:, 0], df_noisefree[column],
+                    line_color=Bokeh5[i],
+                    legend_label='ideal_'+str(column))
+            index_testdp = df_table3.loc[
+                df_table3['Nr. of the ideal function'] ==
+                str(column)].index
+            for j in index_testdp:
+                p2.scatter(df_table3.iloc[j, 0], df_table3.iloc[j, 1],
+                           marker='circle', size=10,
+                           fill_color=Bokeh5[i])
+    show(p2)  # type: ignore

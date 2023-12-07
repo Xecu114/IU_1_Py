@@ -3,6 +3,9 @@ import csv
 from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.orm import sessionmaker, declarative_base
 import pandas as pd
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def transfer_csv_to_sqllite_table(csv_path, db_path):
@@ -68,6 +71,17 @@ def transfer_csv_to_sqllite_table(csv_path, db_path):
     # Create a session object
     session = Session()
 
+    # train_data = pd.read_csv(csv_path+'\\train.csv')
+    # ideal_data = pd.read_csv(csv_path+'\\ideal.csv')
+
+    # train_data.columns = ['x'] + [f'y{i}' for i in range(1, 5)]
+    # ideal_data.columns = ['x'] + [f'y{i}' for i in range(1, 51)]
+
+    # train_data.to_sql('train_data', engine,
+    #                   if_exists='append', index=False)
+    # ideal_data.to_sql('ideal_data', engine,
+    #                   if_exists='append', index=False)
+
     # Read the CSV files and add each row as a new user to the database
     with open(csv_path+'\\train.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile)
@@ -91,10 +105,15 @@ def transfer_csv_to_sqllite_table(csv_path, db_path):
     return_train_list = session.query(Table_train_csv).all()
     # Query the database for all rows -> return type: list
     return_ideal_list = session.query(Table_ideal_csv).all()
-
     # Close session
     session.close()
-    return return_train_list, return_ideal_list
+
+    if len(return_train_list) == 400 and\
+            len(return_ideal_list) == 400:
+        logging.debug('transfer_csv_to_sqllite_table - done')
+    else:
+        logging.error('Something went wrong ! Data in SQL DB is not correct')
+    return
 
 
 def get_dataframe_from_sql_table(db_path, db_table_name):
@@ -123,12 +142,15 @@ def get_dataframe_from_sql_table(db_path, db_table_name):
     df = pd.read_sql_query(f'SELECT * FROM {db_table_name}', connection)
     # Close the database connection
     connection.close()
+    logging.debug('get_dataframe_from_sql_table - done')
     return df
 
 
-def fitted_testdata_to_sql(db_path):
+def fitted_testdata_to_sql(db_path, df):
     # Create an engine that connects to a SQLite database
     engine = create_engine(f'sqlite:///{db_path}', echo=False)
 
-    # Create a base class for declarative class definitions
-    Base = declarative_base()
+    # write the DataFrame into a SQL table
+    df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
+
+    logging.debug('fitted_testdata_to_sql - done')
