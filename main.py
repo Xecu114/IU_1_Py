@@ -7,12 +7,48 @@ from data_handler import transfer_csv_to_sqllite_table, \
     get_dataframe_from_sql_table, fitted_testdata_to_sql
 import os
 import logging
+from sqlalchemy import create_engine, Column, Float
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 logging.basicConfig(level=logging.DEBUG)
 
 files_path = 'Python_Course_IU'
 my_db_path = files_path + '/db/my_db.db'
 td_filename = 'test.csv'
+
+
+''' define superclass for datasets and define one subclass for each
+dataset, that is being used '''
+
+
+class Dataset():
+    # Konstruktor-Methode um Instanz-Attribute dynamisch zu definieren
+    def __init__(self, columns_n=None, rows_n=None,
+                 table_name=None, file_name=None, dataframe=None):
+        self.columns_n = columns_n
+        self.rows_n = rows_n
+        self.table_name = table_name
+        self.file_name = file_name
+        self.dataframe = dataframe
+
+    def create_table_class(self, engine):
+        Base = declarative_base()
+
+        # dynamically create a class for the SQL table
+        class DynTableClass():
+            __tablename__ = self.table_name
+
+            x = Column(Float, primary_key=True)
+            for i in range(1, self.columns_n):  # type: ignore
+                locals()[f'y{i}'] = Column(Float)
+
+        # Rename the class dynamically
+        DynTableClass.__name__ = self.table_name + '_class'  # type: ignore
+
+        # create the table in the SQL database
+        Base.metadata.create_all(engine)
+
+        return DynTableClass
 
 
 def least_square_regression(df_ideal, df_noisy):
@@ -188,7 +224,26 @@ if __name__ == '__main__':
     elif not os.path.exists(my_db_path):
         os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
-    transfer_csv_to_sqllite_table(files_path, my_db_path)
+    train_dataset = Dataset(columns_n=5,
+                            rows_n=400,
+                            table_name='train_data',
+                            file_name='train.csv')
+    ideal_dataset = Dataset(columns_n=51,
+                            rows_n=400,
+                            table_name='ideal_data',
+                            file_name='ideal.csv')
+
+    engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
+    train_dataset.create_table_class(engine)
+    ideal_dataset.create_table_class(engine)
+    with open(files_path+'\\'+train_dataset.file_name, newline='') as csvfile:  # type: ignore
+        df = pd.read_csv(csvfile)
+        df.to_sql(train_dataset.table_name, con=engine,  # type: ignore
+                  if_exists='replace', index=False)
+    with open(files_path+'\\'+ideal_dataset.file_name, newline='') as csvfile:  # type: ignore
+        df = pd.read_csv(csvfile)
+        df.to_sql(ideal_dataset.table_name, con=engine,  # type: ignore
+                  if_exists='replace', index=False)
 
     train_df = get_dataframe_from_sql_table(
         my_db_path, 'train_data')

@@ -8,7 +8,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
-def transfer_csv_to_sqllite_table(csv_path, db_path):
+def transfer_csv_to_sqllite_table(csv_path, db_path, train_dataset,
+                                  ideal_dataset):
     '''_summary_
     1. creates and connects to a new SQLite3 database
     2. defines classes for the sql tables that inherit from the (sqlalchemy)
@@ -35,84 +36,48 @@ def transfer_csv_to_sqllite_table(csv_path, db_path):
     engine = create_engine(f'sqlite:///{db_path}', echo=False)
 
     # Create a base class for declarative class definitions
-    Base = declarative_base()
+    # Base = declarative_base()
 
-    # Define a class for the table for the 'train.csv' data that inherits from
-    # base class
-    class Table_train_csv(Base):
-        __tablename__ = 'train_data'
+    # create the tables in sql
+    train_dataset.create_table_class(engine)
+    ideal_dataset.create_table_class(engine)
 
-        x = Column(Float, primary_key=True)
-        for i in range(1, 5):
-            locals()[f'y{i}'] = Column(Float)
+    with open(csv_path+'\\'+train_dataset.file_name, newline='') as csvfile:
+        df = pd.read_csv(csvfile)
+        df.to_sql(train_dataset.table_name, con=engine,
+                  if_exists='replace', index=False)
+    with open(csv_path+'\\'+ideal_dataset.file_name, newline='') as csvfile:
+        df = pd.read_csv(csvfile)
+        df.to_sql(ideal_dataset.table_name, con=engine,
+                  if_exists='replace', index=False)
 
-        def __repr__(self):
-            return f'train_data(x={self.x}, y1={self.y1}, y2={self.y2},'\
-                f' y3={self.y3}, y4={self.y4})'
+    # # Create a session factory bound to the engine
+    # Session = sessionmaker(bind=engine)
+    # # Create a session object
+    # session = Session()
 
-    # Define a class for the table for the 'ideal.csv' data that inherits from
-    # base class
-    class Table_ideal_csv(Base):
-        __tablename__ = 'ideal_data'
+    # with open(csv_path+'\\ideal.csv', newline='') as csvfile:
+    #     reader = csv.DictReader(csvfile)
+    #     for row in reader:
+    #         ideal_data = Table_ideal_csv(x=row['x'])
+    #         for i in range(1, 51):
+    #             setattr(ideal_data, f'y{i}', row[f'y{i}'])
+    #         session.add(ideal_data)
 
-        x = Column(Float, primary_key=True)
-        for i in range(1, 51):
-            locals()[f'y{i}'] = Column(Float)
+    # # Commit the changes to the database
+    # session.commit()
+    # # Query the database for all rows -> return type: list
+    # return_train_list = session.query(Table_train_csv).all()
+    # # Query the database for all rows -> return type: list
+    # return_ideal_list = session.query(Table_ideal_csv).all()
+    # # Close session
+    # session.close()
 
-        def __repr__(self):
-            return f'ideal_data(x={self.x}, y1={self.y1},..., y50={self.y50}'
-
-    # Create the tables in the database
-    Base.metadata.create_all(engine)
-
-    # Create a session factory bound to the engine
-    Session = sessionmaker(bind=engine)
-
-    # Create a session object
-    session = Session()
-
-    # train_data = pd.read_csv(csv_path+'\\train.csv')
-    # ideal_data = pd.read_csv(csv_path+'\\ideal.csv')
-
-    # train_data.columns = ['x'] + [f'y{i}' for i in range(1, 5)]
-    # ideal_data.columns = ['x'] + [f'y{i}' for i in range(1, 51)]
-
-    # train_data.to_sql('train_data', engine,
-    #                   if_exists='append', index=False)
-    # ideal_data.to_sql('ideal_data', engine,
-    #                   if_exists='append', index=False)
-
-    # Read the CSV files and add each row as a new user to the database
-    with open(csv_path+'\\train.csv', newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            train_data = Table_train_csv(x=row['x'])
-            for i in range(1, 5):
-                setattr(train_data, f'y{i}', row[f'y{i}'])
-            session.add(train_data)
-
-    with open(csv_path+'\\ideal.csv', newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            ideal_data = Table_ideal_csv(x=row['x'])
-            for i in range(1, 51):
-                setattr(ideal_data, f'y{i}', row[f'y{i}'])
-            session.add(ideal_data)
-
-    # Commit the changes to the database
-    session.commit()
-    # Query the database for all rows -> return type: list
-    return_train_list = session.query(Table_train_csv).all()
-    # Query the database for all rows -> return type: list
-    return_ideal_list = session.query(Table_ideal_csv).all()
-    # Close session
-    session.close()
-
-    if len(return_train_list) == 400 and\
-            len(return_ideal_list) == 400:
-        logging.debug('transfer_csv_to_sqllite_table - done')
-    else:
-        logging.error('Something went wrong ! Data in SQL DB is not correct')
+    # if len(return_train_list) == 400 and\
+    #         len(return_ideal_list) == 400:
+    #     logging.debug('transfer_csv_to_sqllite_table - done')
+    # else:
+    #     logging.error('Something went wrong ! Data in SQL DB is not correct')
     return
 
 
