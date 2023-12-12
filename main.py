@@ -3,8 +3,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from plot_data import plot_ideal_functions, plot_noisefree_functions, \
     plot_nf_funcs_w_tps
-from data_handler import transfer_csv_to_sqllite_table, \
-    get_dataframe_from_sql_table, fitted_testdata_to_sql
+from data_handler import fitted_testdata_to_sql
 import os
 import logging
 from sqlalchemy import create_engine, Column, Float
@@ -23,15 +22,16 @@ dataset, that is being used '''
 
 class Dataset():
     # Konstruktor-Methode um Instanz-Attribute dynamisch zu definieren
-    def __init__(self, columns_n=None, rows_n=None,
-                 table_name=None, file_name=None, dataframe=None):
+    def __init__(self, columns_n: float, rows_n: float,
+                 table_name: str, file_name: str,
+                 df: pd.DataFrame = pd.DataFrame()):
         self.columns_n = columns_n
         self.rows_n = rows_n
         self.table_name = table_name
         self.file_name = file_name
-        self.dataframe = dataframe
+        self.df = df
 
-    def create_table_class(self, engine):
+    def create_sql_table(self, engine):
         Base = declarative_base()
 
         # dynamically create a class for the SQL table
@@ -44,11 +44,20 @@ class Dataset():
 
         # Rename the class dynamically
         DynTableClass.__name__ = self.table_name + '_class'  # type: ignore
-
+        logging.debug(self.table_name + '_class - created')
         # create the table in the SQL database
         Base.metadata.create_all(engine)
 
         return DynTableClass
+
+    def get_dataframe_from_csv(self, files_path):
+        with open(files_path+'\\'+self.file_name, newline='') as\
+                csvfile:  # type: ignore
+            self.df = pd.read_csv(csvfile)
+
+    def write_data_to_sql(self, engine):
+        self.df.to_sql(self.table_name, con=engine,
+                       if_exists='replace', index=False)
 
 
 def least_square_regression(df_ideal, df_noisy):
@@ -234,36 +243,28 @@ if __name__ == '__main__':
                             file_name='ideal.csv')
 
     engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
-    train_dataset.create_table_class(engine)
-    ideal_dataset.create_table_class(engine)
-    with open(files_path+'\\'+train_dataset.file_name, newline='') as csvfile:  # type: ignore
-        df = pd.read_csv(csvfile)
-        df.to_sql(train_dataset.table_name, con=engine,  # type: ignore
-                  if_exists='replace', index=False)
-    with open(files_path+'\\'+ideal_dataset.file_name, newline='') as csvfile:  # type: ignore
-        df = pd.read_csv(csvfile)
-        df.to_sql(ideal_dataset.table_name, con=engine,  # type: ignore
-                  if_exists='replace', index=False)
+    train_dataset.get_dataframe_from_csv(files_path)
+    ideal_dataset.get_dataframe_from_csv(files_path)
+    train_dataset.create_sql_table(engine)
+    ideal_dataset.create_sql_table(engine)
+    train_dataset.write_data_to_sql(engine)
+    ideal_dataset.write_data_to_sql(engine)
 
-    train_df = get_dataframe_from_sql_table(
-        my_db_path, 'train_data')
-    ideal_df = get_dataframe_from_sql_table(
-        my_db_path, 'ideal_data')
-
-    # plot_ideal_functions(ideal_df)
+    # plot_ideal_functions(ideal_dataset.df)
 
     noisefree_funcs_index = least_square_regression(
-        ideal_df, train_df)  # noisefree_funcs_index has a (4, 2) shape
+        ideal_dataset.df, train_dataset.df)
+    # noisefree_funcs_index has a (4, 2) shape
 
     # create df with the 4 new 'ideal' functions instead of
     # the 4 noisy functions from the 'train' dataset
     noisefree_df = pd.DataFrame(
         columns=['x'], index=range(400))
-    noisefree_df['x'] = ideal_df.iloc[:, 0]
+    noisefree_df['x'] = ideal_dataset.df.iloc[:, 0]
     for i in range(4):
         row_nr = noisefree_funcs_index[i, 1]
-        noisefree_df['y'+str(row_nr)] = ideal_df.iloc[:, row_nr]
-    plot_noisefree_functions(noisefree_df, train_df)
+        noisefree_df['y'+str(row_nr)] = ideal_dataset.df.iloc[:, row_nr]
+    plot_noisefree_functions(noisefree_df, train_dataset.df)
 
     testdp_temp_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
     testdp_df = testdp_temp_df.sort_values(by='x').reset_index(drop=True)
@@ -271,5 +272,8 @@ if __name__ == '__main__':
         noisefree_df, testdp_df)
     # plot_nf_funcs_w_tps(
     #     testdp_df, functions_testdp_df, noisefree_df, table3_df)
-    fitted_testdata_to_sql(my_db_path, table3_df)
+
+    table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
+    logging.debug('fitted_testdata_to_sql - done')
+
     logging.debug('success')
