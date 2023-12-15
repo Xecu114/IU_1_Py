@@ -46,7 +46,7 @@ def plot_ideal_functions(ideal_df):
         show(plot)  # type: ignore
 
 
-def plot_noisefree_functions(df, train_df):
+def plot_noisefree_funcs(df, train_df):
     '''
     Generates a line plot of two sets of data using the Bokeh library.
     The first set of data is the new ideal functions that match the noisy
@@ -87,17 +87,15 @@ def plot_noisefree_functions(df, train_df):
     show(plot)  # type: ignore
 
 
-def plot_nf_funcs_w_tps(df_testdata,
-                        df_testpoints,
-                        df_noisefree,
-                        df_table3):
+def plot_noisefree_funcs_w_tps(df_testdata,
+                               df_testpoints,
+                               df_noisefree,
+                               df_table3):
     '''
-    Plot test points with related function.
-    This function takes three DataFrames as input and creates line plots
-    from the 'df_noisefree' and scatter plots using the data from the
-    test point DataFrames. One shows all test points and one only the
-    one that are nearby an ideal function. The plots are displayed using
-    the Bokeh library.
+    Creates one plot for each noisefree function with the corresponding
+    testpoint in the same color and one plot with all functions.
+    Also shows all testpoints, that aren't associated to the function in black.
+    The plots are displayed using the Bokeh library.
 
     Args:
         df_testdata (DataFrame): A DataFrame containing test data with
@@ -111,8 +109,7 @@ def plot_nf_funcs_w_tps(df_testdata,
         None
 
     Example Usage:
-        plot_testpoints_with_related_function(
-            test_df, df_test_cleaned, noisefree_df)
+        ...
     '''
 
     def new_plot_for_each_func():

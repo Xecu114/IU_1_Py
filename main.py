@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
-from plot_data import plot_ideal_functions, plot_noisefree_functions, \
-    plot_nf_funcs_w_tps
+from plot_data import plot_ideal_functions, plot_noisefree_funcs, \
+    plot_noisefree_funcs_w_tps
 import os
 import logging
 from sqlalchemy import create_engine, Column, Float
@@ -15,19 +15,19 @@ my_db_path = files_path + '/db/my_db.db'
 td_filename = 'test.csv'
 engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
 
-''' define superclass for datasets and define one subclass for... '''
+# define superclass for datasets and define one subclass for...
 
 
 class DatasetCSV():
     # define constructor to dynamically define attributes
     def __init__(self, file_name: str, df: pd.DataFrame = pd.DataFrame()):
-        self.file_name = file_name
+        self._file_name = file_name
         self.df = df
         # get data from csv at initialization
         self.get_dataframe_from_csv()
 
     def get_dataframe_from_csv(self):
-        with open(files_path+'\\'+self.file_name, newline='')\
+        with open(files_path+'\\'+self._file_name, newline='')\
                 as csvfile:
             self.df = pd.read_csv(csvfile)
 
@@ -37,15 +37,15 @@ class DatasetWithSQLTable(DatasetCSV):
     def __init__(self, table_name: str,
                  file_name: str, df: pd.DataFrame = pd.DataFrame()):
         super().__init__(file_name, df)
-        self.table_name = table_name
+        self._table_name = table_name
 
         self.write_data_to_sql()
         # self.create_sql_table()
 
     def write_data_to_sql(self):
-        self.df.to_sql(self.table_name, con=engine,
+        self.df.to_sql(self._table_name, con=engine,
                        if_exists='replace', index=False)
-        logging.debug(self.table_name + '- written Data to SQL')
+        logging.debug(self._table_name + '- written Data to SQL')
 
 
 def least_square_regression(df_ideal, df_noisy):
@@ -225,7 +225,6 @@ if __name__ == '__main__':
                                         file_name='train.csv')
     ideal_dataset = DatasetWithSQLTable(table_name='ideal_data',
                                         file_name='ideal.csv')
-
     # plot_ideal_functions(ideal_dataset.df)
 
     noisefree_funcs_index = least_square_regression(
@@ -240,17 +239,16 @@ if __name__ == '__main__':
     for i in range(4):
         row_nr = noisefree_funcs_index[i, 1]
         noisefree_df['y'+str(row_nr)] = ideal_dataset.df.iloc[:, row_nr]
-    plot_noisefree_functions(noisefree_df, train_dataset.df)
+    # plot_noisefree_funcs(noisefree_df, train_dataset.df)
 
     test_dataset = DatasetCSV(file_name='test.csv')
     test_dataset.df = test_dataset.df.\
         sort_values(by='x').reset_index(drop=True)
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, test_dataset.df)
-    # plot_nf_funcs_w_tps(
-    #     test_dataset.df, functions_testdp_df, noisefree_df, table3_df)
-
     table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
     logging.debug('fitted_testdata_to_sql - done')
+    plot_noisefree_funcs_w_tps(
+        test_dataset.df, functions_testdp_df, noisefree_df, table3_df)
 
     logging.debug('success')
