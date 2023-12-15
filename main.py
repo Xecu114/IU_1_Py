@@ -3,7 +3,6 @@ import numpy as np
 from scipy.optimize import least_squares
 from plot_data import plot_ideal_functions, plot_noisefree_functions, \
     plot_nf_funcs_w_tps
-from data_handler import fitted_testdata_to_sql
 import os
 import logging
 from sqlalchemy import create_engine, Column, Float
@@ -23,13 +22,29 @@ dataset, that is being used '''
 class Dataset():
     # Konstruktor-Methode um Instanz-Attribute dynamisch zu definieren
     def __init__(self, columns_n: float, rows_n: float,
-                 table_name: str, file_name: str,
-                 df: pd.DataFrame = pd.DataFrame()):
+                 file_name: str, df: pd.DataFrame = pd.DataFrame()):
         self.columns_n = columns_n
         self.rows_n = rows_n
-        self.table_name = table_name
         self.file_name = file_name
         self.df = df
+
+    def get_dataframe_from_csv(self, files_path):
+        with open(files_path+'\\'+self.file_name, newline='')\
+                as csvfile:
+            self.df = pd.read_csv(csvfile)
+
+
+class DatasetSQL(Dataset):
+
+    def __init__(self, table_name: str, columns_n: float, rows_n: float,
+                 file_name: str, df: pd.DataFrame = pd.DataFrame()):
+        super().__init__(columns_n, rows_n, file_name, df)
+        self.table_name = table_name
+
+    def write_data_to_sql(self, engine):
+        self.df.to_sql(self.table_name, con=engine,
+                       if_exists='replace', index=False)
+        logging.debug(self.table_name + '- written Data to SQL')
 
     def create_sql_table(self, engine):
         Base = declarative_base()
@@ -43,21 +58,12 @@ class Dataset():
                 locals()[f'y{i}'] = Column(Float)
 
         # Rename the class dynamically
-        DynTableClass.__name__ = self.table_name + '_class'  # type: ignore
-        logging.debug(self.table_name + '_class - created')
+        DynTableClass.__name__ = self.table_name + '_class'
+        logging.debug(self.table_name + '- SQL table created')
         # create the table in the SQL database
         Base.metadata.create_all(engine)
 
         return DynTableClass
-
-    def get_dataframe_from_csv(self, files_path):
-        with open(files_path+'\\'+self.file_name, newline='') as\
-                csvfile:  # type: ignore
-            self.df = pd.read_csv(csvfile)
-
-    def write_data_to_sql(self, engine):
-        self.df.to_sql(self.table_name, con=engine,
-                       if_exists='replace', index=False)
 
 
 def least_square_regression(df_ideal, df_noisy):
@@ -233,14 +239,14 @@ if __name__ == '__main__':
     elif not os.path.exists(my_db_path):
         os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
-    train_dataset = Dataset(columns_n=5,
-                            rows_n=400,
-                            table_name='train_data',
-                            file_name='train.csv')
-    ideal_dataset = Dataset(columns_n=51,
-                            rows_n=400,
-                            table_name='ideal_data',
-                            file_name='ideal.csv')
+    train_dataset = DatasetSQL(columns_n=5,
+                               rows_n=400,
+                               table_name='train_data',
+                               file_name='train.csv')
+    ideal_dataset = DatasetSQL(columns_n=51,
+                               rows_n=400,
+                               table_name='ideal_data',
+                               file_name='ideal.csv')
 
     engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
     train_dataset.get_dataframe_from_csv(files_path)
@@ -266,10 +272,16 @@ if __name__ == '__main__':
         noisefree_df['y'+str(row_nr)] = ideal_dataset.df.iloc[:, row_nr]
     plot_noisefree_functions(noisefree_df, train_dataset.df)
 
-    testdp_temp_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
-    testdp_df = testdp_temp_df.sort_values(by='x').reset_index(drop=True)
+    test_dataset = Dataset(columns_n=2,
+                           rows_n=100,
+                           file_name='test.csv')
+    # testdp_temp_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
+    test_dataset.get_dataframe_from_csv(files_path)
+    test_dataset.df = test_dataset.df.\
+        sort_values(by='x').reset_index(drop=True)
+    # testdp_df = testdp_temp_df.sort_values(by='x').reset_index(drop=True)
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
-        noisefree_df, testdp_df)
+        noisefree_df, test_dataset.df)
     # plot_nf_funcs_w_tps(
     #     testdp_df, functions_testdp_df, noisefree_df, table3_df)
 
