@@ -13,57 +13,39 @@ logging.basicConfig(level=logging.DEBUG)
 files_path = 'Python_Course_IU'
 my_db_path = files_path + '/db/my_db.db'
 td_filename = 'test.csv'
+engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
+
+''' define superclass for datasets and define one subclass for... '''
 
 
-''' define superclass for datasets and define one subclass for each
-dataset, that is being used '''
-
-
-class Dataset():
-    # Konstruktor-Methode um Instanz-Attribute dynamisch zu definieren
-    def __init__(self, columns_n: float, rows_n: float,
-                 file_name: str, df: pd.DataFrame = pd.DataFrame()):
-        self.columns_n = columns_n
-        self.rows_n = rows_n
+class DatasetCSV():
+    # define constructor to dynamically define attributes
+    def __init__(self, file_name: str, df: pd.DataFrame = pd.DataFrame()):
         self.file_name = file_name
         self.df = df
+        # get data from csv at initialization
+        self.get_dataframe_from_csv()
 
-    def get_dataframe_from_csv(self, files_path):
+    def get_dataframe_from_csv(self):
         with open(files_path+'\\'+self.file_name, newline='')\
                 as csvfile:
             self.df = pd.read_csv(csvfile)
 
 
-class DatasetSQL(Dataset):
+class DatasetWithSQLTable(DatasetCSV):
 
-    def __init__(self, table_name: str, columns_n: float, rows_n: float,
+    def __init__(self, table_name: str,
                  file_name: str, df: pd.DataFrame = pd.DataFrame()):
-        super().__init__(columns_n, rows_n, file_name, df)
+        super().__init__(file_name, df)
         self.table_name = table_name
 
-    def write_data_to_sql(self, engine):
+        self.write_data_to_sql()
+        # self.create_sql_table()
+
+    def write_data_to_sql(self):
         self.df.to_sql(self.table_name, con=engine,
                        if_exists='replace', index=False)
         logging.debug(self.table_name + '- written Data to SQL')
-
-    def create_sql_table(self, engine):
-        Base = declarative_base()
-
-        # dynamically create a class for the SQL table
-        class DynTableClass():
-            __tablename__ = self.table_name
-
-            x = Column(Float, primary_key=True)
-            for i in range(1, self.columns_n):  # type: ignore
-                locals()[f'y{i}'] = Column(Float)
-
-        # Rename the class dynamically
-        DynTableClass.__name__ = self.table_name + '_class'
-        logging.debug(self.table_name + '- SQL table created')
-        # create the table in the SQL database
-        Base.metadata.create_all(engine)
-
-        return DynTableClass
 
 
 def least_square_regression(df_ideal, df_noisy):
@@ -236,25 +218,13 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
 if __name__ == '__main__':
     if os.path.exists(my_db_path):
         os.remove(my_db_path)
-    elif not os.path.exists(my_db_path):
+    elif not os.path.exists(my_db_path.rsplit('/', 1)[0]):
         os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
-    train_dataset = DatasetSQL(columns_n=5,
-                               rows_n=400,
-                               table_name='train_data',
-                               file_name='train.csv')
-    ideal_dataset = DatasetSQL(columns_n=51,
-                               rows_n=400,
-                               table_name='ideal_data',
-                               file_name='ideal.csv')
-
-    engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
-    train_dataset.get_dataframe_from_csv(files_path)
-    ideal_dataset.get_dataframe_from_csv(files_path)
-    train_dataset.create_sql_table(engine)
-    ideal_dataset.create_sql_table(engine)
-    train_dataset.write_data_to_sql(engine)
-    ideal_dataset.write_data_to_sql(engine)
+    train_dataset = DatasetWithSQLTable(table_name='train_data',
+                                        file_name='train.csv')
+    ideal_dataset = DatasetWithSQLTable(table_name='ideal_data',
+                                        file_name='ideal.csv')
 
     # plot_ideal_functions(ideal_dataset.df)
 
@@ -272,18 +242,13 @@ if __name__ == '__main__':
         noisefree_df['y'+str(row_nr)] = ideal_dataset.df.iloc[:, row_nr]
     plot_noisefree_functions(noisefree_df, train_dataset.df)
 
-    test_dataset = Dataset(columns_n=2,
-                           rows_n=100,
-                           file_name='test.csv')
-    # testdp_temp_df = pd.read_csv(files_path+'\\'+td_filename, header=0)
-    test_dataset.get_dataframe_from_csv(files_path)
+    test_dataset = DatasetCSV(file_name='test.csv')
     test_dataset.df = test_dataset.df.\
         sort_values(by='x').reset_index(drop=True)
-    # testdp_df = testdp_temp_df.sort_values(by='x').reset_index(drop=True)
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, test_dataset.df)
     # plot_nf_funcs_w_tps(
-    #     testdp_df, functions_testdp_df, noisefree_df, table3_df)
+    #     test_dataset.df, functions_testdp_df, noisefree_df, table3_df)
 
     table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
     logging.debug('fitted_testdata_to_sql - done')
