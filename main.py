@@ -19,28 +19,43 @@ engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
 
 
 class DatasetCSV():
-    # define constructor to dynamically define attributes
+    '''
+    A class to represent a dataset in CSV format.
+
+    Attributes:
+    - file_name (str): the name of the CSV file.
+    - df (pd.DataFrame): the DataFrame containing the data from the CSV file.
+    '''
+
     def __init__(self, file_name: str, df: pd.DataFrame = pd.DataFrame()):
+        if not isinstance(file_name, str):
+            raise TypeError("file_name must be a string")
         self._file_name = file_name
         self.df = df
-        # get data from csv at initialization
         self.get_dataframe_from_csv()
 
     def get_dataframe_from_csv(self):
-        with open(files_path+'\\'+self._file_name, newline='')\
-                as csvfile:
-            self.df = pd.read_csv(csvfile)
+        '''
+        Reads the CSV file and assigns the data to the df attribute.
+        '''
+        file_path = os.path.join(files_path, self._file_name)
+        if os.path.isfile(file_path):
+            self.df = pd.read_csv(file_path)
+        else:
+            raise FileNotFoundError("File not found:", file_path)
 
 
 class DatasetWithSQLTable(DatasetCSV):
 
     def __init__(self, table_name: str,
                  file_name: str, df: pd.DataFrame = pd.DataFrame()):
+        if not isinstance(file_name, str):
+            raise TypeError("file_name must be a string")
+        if not isinstance(table_name, str):
+            raise TypeError("table_name must be a string")
         super().__init__(file_name, df)
         self._table_name = table_name
-
         self.write_data_to_sql()
-        # self.create_sql_table()
 
     def write_data_to_sql(self):
         self.df.to_sql(self._table_name, con=engine,
