@@ -27,11 +27,11 @@ class DatasetCSV():
     - df (pd.DataFrame): the DataFrame containing the data from the CSV file.
     '''
 
-    def __init__(self, file_name: str, df: pd.DataFrame = pd.DataFrame()):
+    def __init__(self, file_name: str):
         if not isinstance(file_name, str):
             raise TypeError("file_name must be a string")
         self._file_name = file_name
-        self.df = df
+        self.df = pd.DataFrame()
         self.get_dataframe_from_csv()
 
     def get_dataframe_from_csv(self):
@@ -48,16 +48,16 @@ class DatasetCSV():
 class DatasetWithSQLTable(DatasetCSV):
 
     def __init__(self, table_name: str,
-                 file_name: str, df: pd.DataFrame = pd.DataFrame()):
+                 file_name: str, engine):
         if not isinstance(file_name, str):
             raise TypeError("file_name must be a string")
         if not isinstance(table_name, str):
             raise TypeError("table_name must be a string")
-        super().__init__(file_name, df)
+        super().__init__(file_name)
         self._table_name = table_name
-        self.write_data_to_sql()
+        self.write_data_to_sql(engine)
 
-    def write_data_to_sql(self):
+    def write_data_to_sql(self, engine):
         self.df.to_sql(self._table_name, con=engine,
                        if_exists='replace', index=False)
         logging.debug(self._table_name + '- written Data to SQL')
@@ -237,9 +237,11 @@ if __name__ == '__main__':
         os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
     train_dataset = DatasetWithSQLTable(table_name='train_data',
-                                        file_name='train.csv')
+                                        file_name='train.csv',
+                                        engine=engine)
     ideal_dataset = DatasetWithSQLTable(table_name='ideal_data',
-                                        file_name='ideal.csv')
+                                        file_name='ideal.csv',
+                                        engine=engine)
     # plot_ideal_functions(ideal_dataset.df)
 
     noisefree_funcs_index = least_square_regression(
