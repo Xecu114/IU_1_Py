@@ -7,6 +7,9 @@ import os
 import logging
 from sqlalchemy import create_engine, Column, Float
 from sqlalchemy.orm import sessionmaker, declarative_base
+from bokeh.plotting import figure, output_file, show
+from bokeh.palettes import Spectral11, Bokeh5
+from bokeh.models import Range1d
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -20,7 +23,7 @@ engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
 
 class DatasetCSV():
     '''
-    A class to represent a dataset in CSV format.
+    A class to represent a dataset imported from a CSV file.
 
     Attributes:
     - file_name (str): the name of the CSV file.
@@ -46,6 +49,15 @@ class DatasetCSV():
 
 
 class DatasetWithSQLTable(DatasetCSV):
+    '''
+    A class to represent a dataset imported from a CSV file and
+    an export to a SQLite database table.
+
+    Attributes:
+    - file_name (str): the name of the CSV file.
+    - table_name (str): the name of the SQLite db table.
+    - df (pd.DataFrame): the DataFrame containing the data from the CSV file.
+    '''
 
     def __init__(self, table_name: str,
                  file_name: str, engine):
@@ -105,11 +117,12 @@ def least_square_regression(df_ideal, df_noisy):
 
             # Save the results into an array
             result[i, 0] = i+1
-            result[i, 1] = np.sum(
+            result[i, 1] = np.linalg.norm(
                 (np.polyval(p, np.arange(400)) - f) ** 2)
 
         # Sort the result array after the sum of squared deviations
-        result = result[result[:, 1].argsort()]
+        sorted_indices = np.argsort(result[:, 1])
+        result = result[sorted_indices]
 
         # Save the best result into the new array
         noise_free_functions[j, 0] = j+1
@@ -231,10 +244,13 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
 
 
 if __name__ == '__main__':
-    if os.path.exists(my_db_path):
+    try:
         os.remove(my_db_path)
-    elif not os.path.exists(my_db_path.rsplit('/', 1)[0]):
-        os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
+    except FileNotFoundError:
+        pass
+    else:
+        if not os.path.exists(my_db_path.rsplit('/', 1)[0]):
+            os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
     train_dataset = DatasetWithSQLTable(table_name='train_data',
                                         file_name='train.csv',
@@ -264,8 +280,6 @@ if __name__ == '__main__':
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, test_dataset.df)
     table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
-    logging.debug('fitted_testdata_to_sql - done')
+    logging.info('finished exporting all relevant data to SQL DB')
     plot_noisefree_funcs_w_tps(
         test_dataset.df, functions_testdp_df, noisefree_df, table3_df)
-
-    logging.debug('success')
