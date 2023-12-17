@@ -3,8 +3,7 @@ import numpy as np
 from scipy.optimize import least_squares
 import os
 import logging
-from sqlalchemy import create_engine, Column, Float
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine
 from bokeh.plotting import figure, output_file, show
 from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
@@ -241,7 +240,7 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
     return results_df, fitted_testdp_df
 
 
-def plot_ideal_functions(ideal_df):
+def plot_ideal_funcs():
     '''
     Generates line charts representing all columns of the DataFrame using the
     Bokeh library. Each column is displayed in a different color and given
@@ -249,38 +248,35 @@ def plot_ideal_functions(ideal_df):
     into 5 seperate DataFrames that each contain 10 functions
 
     Args:
-        ideal_df (_type_): DataFrame containing the whole set of
-            'ideal' functions as columns with following shape:
-            [400 r x 51 c]
+        None
 
     Returns:
         None
 
     Example Usage:
-        plot_ideal_functions(ideal_df)
+        plot_ideal_funcs()
     '''
     output_file('ideal_data_diagram.html')
 
-    # split the ideal DataFrame into 5 DataFrames with 10 functions each
-    # dfs = [ideal_df.iloc[:, i:i+10] for i in range(1, 50, 10)]
     # split the ideal dataframe into 5 dataframes with 10 functions each
-    dfs = [ideal_df.iloc[:, i:i+10] for i in range(1, 50, 10)]
+    # shape splits from [400 r x 51 c] to 5x [400 r x 10 c]
+    dfs = [ideal_dataset.df.iloc[:, i:i+10] for i in range(1, 50, 10)]
 
     for df in dfs:
         plot = figure(width=1200, height=900,
                       title='ideal.csv Line Plot' + str(df.index),
                       x_axis_label='x', y_axis_label='y')
-        min_max_values = ideal_df['x'].agg(['min', 'max'])
+        min_max_values = ideal_dataset.df['x'].agg(['min', 'max'])
         plot.x_range = Range1d(min_max_values.iloc[0], min_max_values.iloc[1])
         for i, column in enumerate(df.columns):
-            plot.line(ideal_df.iloc[:, 0], df[column],
+            plot.line(ideal_dataset.df.iloc[:, 0], df[column],
                       line_color=Spectral11[i % len(Spectral11)],
                       legend_label=str(column))
         plot.legend.location = 'top_left'
         show(plot)  # type: ignore
 
 
-def plot_noisefree_funcs(df, train_df):
+def plot_noisefree_funcs(df):
     '''
     Generates a line plot of two sets of data using the Bokeh library.
     The first set of data is the new ideal functions that match the noisy
@@ -290,15 +286,12 @@ def plot_noisefree_funcs(df, train_df):
         df (DataFrame): The DataFrame containing the ideal or 'noisefree'
             data. It should contain at the the column 'x' and one column
             for each of the four functions.
-        train_df (DataFrame): A subset of the main DataFrame containing the
-            columns to be plotted. It should contain at the the column 'x'
-            and one column for each of the four functions.
 
     Returns:
         None
 
     Example Usage:
-        plot_noisefree_functions(noisefree_df, train_df)
+        plot_noisefree_functions(noisefree_df)
     '''
     output_file('noisefree_data_diagram.html')
     plot = figure(width=1200, height=900,
@@ -307,9 +300,9 @@ def plot_noisefree_funcs(df, train_df):
     min_max_values = df['x'].agg(['min', 'max'])
     plot.x_range = Range1d(min_max_values.iloc[0],
                            min_max_values.iloc[1])
-    for i, column in enumerate(train_df.columns):
+    for i, column in enumerate(train_dataset.df.columns):
         if i > 0:
-            plot.line(train_df.iloc[:, 0], train_df[column],
+            plot.line(train_dataset.df.iloc[:, 0], train_dataset.df[column],
                       line_color=Spectral11[i % len(Spectral11)],
                       legend_label='train_'+str(column))
     for i, column in enumerate(df.columns):
@@ -321,8 +314,7 @@ def plot_noisefree_funcs(df, train_df):
     show(plot)  # type: ignore
 
 
-def plot_noisefree_funcs_w_tps(df_testdata,
-                               df_testpoints,
+def plot_noisefree_funcs_w_tps(df_testpoints,
                                df_noisefree,
                                df_table3):
     '''
@@ -332,18 +324,20 @@ def plot_noisefree_funcs_w_tps(df_testdata,
     The plots are displayed using the Bokeh library.
 
     Args:
-        df_testdata (DataFrame): A DataFrame containing test data with
-            columns 'x' and 'y'.
         df_testpoints (DataFrame): A DataFrame containing test points
             with columns 'x' and 'y1', 'y2', etc.
         df_noisefree (DataFrame): A DataFrame containing noise-free data
             with columns 'x' and 'y1', 'y2', etc.
+        df_table3 (DataFrame): A DataFrame containing the test points
+            approached to the noisefree functions
 
     Returns:
         None
 
     Example Usage:
-        ...
+        plot_noisefree_funcs_w_tps(
+            functions_testdatapoints_df, noisefree_df, table3_df)
+
     '''
 
     def new_plot_for_each_func():
@@ -363,7 +357,7 @@ def plot_noisefree_funcs_w_tps(df_testdata,
             p.line(df_noisefree.iloc[:, 0], df_noisefree[column],
                    line_color=Bokeh5[i],
                    legend_label='ideal_'+str(column))
-            p.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
+            p.scatter(test_dataset.df.iloc[:, 0], test_dataset.df.iloc[:, 1],
                       marker='circle', size=5, fill_color='black')
             p.scatter(df_testpoints.iloc[:, 0], df_testpoints.iloc[:, i],
                       marker='circle', size=10,
@@ -379,7 +373,7 @@ def plot_noisefree_funcs_w_tps(df_testdata,
     min_max_values = df_noisefree['x'].agg(['min', 'max'])
     p2.x_range = Range1d(min_max_values.iloc[0],
                          min_max_values.iloc[1])
-    p2.scatter(df_testdata.iloc[:, 0], df_testdata.iloc[:, 1],
+    p2.scatter(test_dataset.df.iloc[:, 0], test_dataset.df.iloc[:, 1],
                marker='circle', size=5, fill_color='black')
     for i, column in enumerate(df_noisefree.columns):
         if i > 0:
@@ -411,7 +405,7 @@ if __name__ == '__main__':
     ideal_dataset = DatasetWithSQLTable(table_name='ideal_data',
                                         file_name='ideal.csv',
                                         engine=engine)
-    # plot_ideal_functions(ideal_dataset.df)
+    # plot_ideal_funcs()
 
     noisefree_funcs_index = least_square_regression(
         ideal_dataset.df, train_dataset.df)
@@ -425,7 +419,7 @@ if __name__ == '__main__':
     for i in range(4):
         row_nr = noisefree_funcs_index[i, 1]
         noisefree_df['y'+str(row_nr)] = ideal_dataset.df.iloc[:, row_nr]
-    # plot_noisefree_funcs(noisefree_df, train_dataset.df)
+    # plot_noisefree_funcs(noisefree_df)
 
     test_dataset = DatasetCSV(file_name='test.csv')
     test_dataset.df = test_dataset.df.\
@@ -435,4 +429,4 @@ if __name__ == '__main__':
     table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
     logging.info('finished exporting all relevant data to SQL DB')
     plot_noisefree_funcs_w_tps(
-        test_dataset.df, functions_testdp_df, noisefree_df, table3_df)
+        functions_testdp_df, noisefree_df, table3_df)
