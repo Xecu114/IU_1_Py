@@ -41,6 +41,7 @@ class DatasetCSV():
         file_path = os.path.join(files_path, self._file_name)
         if os.path.isfile(file_path):
             self.df = pd.read_csv(file_path)
+            logging.debug(file_path + ' - file read successfully')
         else:
             raise FileNotFoundError("File not found:", file_path)
 
@@ -69,7 +70,7 @@ class DatasetWithSQLTable(DatasetCSV):
     def write_data_to_sql(self, engine):
         self.df.to_sql(self._table_name, con=engine,
                        if_exists='replace', index=False)
-        logging.debug(self._table_name + '- written Data to SQL')
+        logging.debug(self._table_name + ' - written Data to SQL')
 
 
 def least_square_regression(df_ideal, df_noisy):
