@@ -9,6 +9,7 @@ from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
 
 logging.basicConfig(level=logging.DEBUG)
+plottenQ = False
 
 files_path = 'Python_Course_IU'
 my_db_path = files_path + '/db/my_db.db'
@@ -176,15 +177,18 @@ def lsr_to_fit_functions(df_i, df_n):
         approxed_funcs_index[j, 0] = j+1
         approxed_funcs_index[j, 1] = int(result[0, 0])
 
-    # create df with the new 'ideal' functions that replace
+    # create df with the new "ideal" functions that replace
     # the old noisy functions
     # Note: noisefree_funcs_index has a (len(df_i.columns)-1, 2) shape
     approxed_funcs_df = pd.DataFrame(
         columns=['x'], index=range(len(df_i)))
+    # add the x values
     approxed_funcs_df['x'] = df_i.iloc[:, 0]
+    # add column after column the "ideal" dfunctions
     for i in range(4):
         row_nr = approxed_funcs_index[i, 1]
         approxed_funcs_df['y'+str(row_nr)] = df_i.iloc[:, row_nr]
+
     logging.debug('least_square_regression - done')
     return approxed_funcs_df
 
@@ -300,7 +304,7 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
     return results_df, fitted_testdp_df
 
 
-def plot_ideal_funcs():
+def plot_all_ideal_funcs():
     '''
     Generates line charts representing all columns of the DataFrame using the
     Bokeh library. Each column is displayed in a different color and given
@@ -314,7 +318,7 @@ def plot_ideal_funcs():
         None
 
     Example Usage:
-        plot_ideal_funcs()
+        plot_all_ideal_funcs()
     '''
     output_file('ideal_data_diagram.html')
 
@@ -451,33 +455,52 @@ def plot_noisefree_funcs_w_tps(df_testpoints,
 
 
 if __name__ == '__main__':
+    # try to remove the db when it already exists
+    # -> we'd like a fresh db without any data in it
     try:
         os.remove(my_db_path)
     except FileNotFoundError:
-        pass
-    else:
+        # create the path if path isn't already created
         if not os.path.exists(my_db_path.rsplit('/', 1)[0]):
             os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
 
+    # create new class instance that represents the datasets
+    # from the "train.csv" and "ideal.csv" files
+    # and because we want the data to be saved in the SQL db
+    # we choose the "DatasetWithSQLTable" class
     train_dataset = DatasetWithSQLTable(table_name='train_data',
                                         file_name='train.csv',
                                         engine=engine)
     ideal_dataset = DatasetWithSQLTable(table_name='ideal_data',
                                         file_name='ideal.csv',
                                         engine=engine)
-    # plot_ideal_funcs()
+    # plot_all_ideal_funcs() if plottenQ is True else None
 
+    # apply the least squares regression method to approximate
+    # the noisy functions to the ideal functions and get a new
+    # dataframe with the ideal functions that fitted the best
+    # shape of noisefree_df is: (5, 400)
     noisefree_df = lsr_to_fit_functions(
         ideal_dataset.df, train_dataset.df)
 
-    # plot_noisefree_funcs(noisefree_df)
+    # plot the result by laying the noisy functions over the approxed
+    # ideal functions
+    plot_noisefree_funcs(noisefree_df) if plottenQ is True else None
 
+    # create new instance of the "DatasetCSV" class that reresents our
+    # test data from the "test.csv" file
     test_dataset = DatasetCSV(file_name='test.csv')
+    # sort the data by x value
     test_dataset.df = test_dataset.df.\
         sort_values(by='x').reset_index(drop=True)
+    # find the best fits for each test data points by checking which of the
+    # four ideal functions each test data point can be approximated to
     functions_testdp_df, table3_df = find_best_fit_for_test_data(
         noisefree_df, test_dataset.df)
+    # export the resulting data to the SQL db
     table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
     logging.info('finished exporting all relevant data to SQL DB')
-    # plot_noisefree_funcs_w_tps(
-    #     functions_testdp_df, noisefree_df, table3_df)
+    # plots the ideal functions with the fitted test data points.
+    plot_noisefree_funcs_w_tps(
+        functions_testdp_df, noisefree_df, table3_df) \
+        if plottenQ is True else None
