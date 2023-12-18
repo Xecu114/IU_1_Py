@@ -6,7 +6,11 @@ from sqlalchemy import create_engine, inspect
 
 class UnitTests(unittest.TestCase):
 
+    '''
+    "DatasetCSV" class tests
+    '''
     # CSV file is read successfully and data is assigned to the df
+
     def test_read_ideal_csv_file(self):
         file_name = 'ideal.csv'
         dataset = tf.DatasetCSV(file_name)
@@ -30,14 +34,24 @@ class UnitTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             tf.DatasetCSV(file_name)
 
+    '''
+    "DataSetWithSQLTable" class tests
+    '''
     # Creating an instance of the class with valid arguments should
     # not raise any exceptions.
+
     def test_DataSetWithSQLTable_with_valid_arguments(self):
         try:
             engine = create_engine('sqlite:///:memory:')
             tf.DatasetWithSQLTable('train_data', 'train.csv', engine)
         except Exception as e:
             self.fail(f'Exception raised: {e}')
+
+    # DatasetCSV object is created with an invalid argument
+    def test_DataSetWithSQLTable_with_invalid_arguments(self):
+        engine = create_engine('sqlite:///:memory:')
+        with self.assertRaises(TypeError):
+            tf.DatasetWithSQLTable(345, 'train.csv', engine)  # type: ignore
 
     # The DataFrame should be successfully written to an SQLite database table.
     def test_write_to_sql(self):
@@ -48,11 +62,9 @@ class UnitTests(unittest.TestCase):
         dataframe = pd.read_sql_table(table_name, con=engine)
         self.assertEqual(19.776287, dataframe.iloc[0, 4])
 
-    # DatasetCSV object is created with an invalid argument
-    def test_DataSetWithSQLTable_with_invalid_arguments(self):
-        engine = create_engine('sqlite:///:memory:')
-        with self.assertRaises(TypeError):
-            tf.DatasetWithSQLTable(345, 'train.csv', engine)  # type: ignore
+    '''
+    "least_square_regression" unit tests
+    '''
 
 
 # dieses Skript im unittest-Kontext ausführen

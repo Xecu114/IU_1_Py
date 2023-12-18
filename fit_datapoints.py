@@ -15,28 +15,45 @@ my_db_path = files_path + '/db/my_db.db'
 td_filename = 'test.csv'
 engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
 
-# define superclass for datasets and define one subclass for...
-
 
 class DatasetCSV():
     '''
     A class to represent a dataset imported from a CSV file.
 
-    Attributes:
+    Instance Attributes (Parameters):
     - file_name (str): the name of the CSV file.
-    - df (pd.DataFrame): the DataFrame containing the data from the CSV file.
+
+    Class Attributes:
+    - df (pandas.DataFrame): DataFrame containing the data from the CSV file.
+
+    Example Usage:
+        test_dataset = DatasetCSV(file_name='test.csv')
+        print(test_dataset.df)
     '''
 
     def __init__(self, file_name: str):
+        '''
+        Constructor to assign the provided parameters to the attributes
+        '''
         if not isinstance(file_name, str):
             raise TypeError("file_name must be a string")
+        # _ before the attribute name shows that it's a "private" attribute
+        # to indicate it should not be changed later
         self._file_name = file_name
-        self.df = pd.DataFrame()
+        # read the csv file into a pandas.DataFrame at initialization
         self.get_dataframe_from_csv()
 
+    # method created instead of directly putting it into _init_ so it can
+    # be called again after initialization
     def get_dataframe_from_csv(self):
         '''
         Reads the CSV file and assigns the data to the df attribute.
+
+        Args:
+            None
+
+        Returns:
+            None
         '''
         file_path = os.path.join(files_path, self._file_name)
         if os.path.isfile(file_path):
@@ -48,46 +65,78 @@ class DatasetCSV():
 
 class DatasetWithSQLTable(DatasetCSV):
     '''
-    A class to represent a dataset imported from a CSV file and
-    an export to a SQLite database table.
+    A class to represent a dataset imported from a CSV file and additionally
+    with an export to a SQLite database table.
 
-    Attributes:
+    Instance Attributes (Args):
     - file_name (str): the name of the CSV file.
     - table_name (str): the name of the SQLite db table.
-    - df (pd.DataFrame): the DataFrame containing the data from the CSV file.
+    - engine (sqlalchemy.create_engine): An instance of the SQLAlchemy
+        create_engine class representing the connection to the SQLite database.
+
+    Class Attributes:
+    - df (pd.DataFrame): DataFrame containing the data from the CSV file.
+
+    Example Usage:
+        train_dataset = DatasetWithSQLTable(table_name='train_data',
+                                        file_name='train.csv',
+                                        engine=engine)
+        print(train_dataset.df)
     '''
 
+    # constructor to assign the provided parameters to the attributes
     def __init__(self, table_name: str,
                  file_name: str, engine):
+        '''
+        Constructor to assign the provided parameters to the attributes
+        '''
         if not isinstance(file_name, str):
             raise TypeError("file_name must be a string")
         if not isinstance(table_name, str):
             raise TypeError("table_name must be a string")
         super().__init__(file_name)
         self._table_name = table_name
-        self.write_data_to_sql(engine)
+        self._engine = engine
+        # write the data at initialization
+        self.write_data_to_sql()
 
-    def write_data_to_sql(self, engine):
-        self.df.to_sql(self._table_name, con=engine,
+    # method created instead of directly putting it into _init_ so it can
+    # be called again after initialization
+    def write_data_to_sql(self):
+        '''
+        Write the data from a DataFrame to a SQLite database table.
+
+        Args:
+            None
+
+        Returns:
+            None
+        '''
+        self.df.to_sql(self._table_name, con=self._engine,
                        if_exists='replace', index=False)
         logging.debug(self._table_name + ' - written Data to SQL')
 
 
-def least_square_regression(df_ideal, df_noisy):
+def lsr_to_fit_functions(df_i, df_n):
     '''
-    Apply least squares regression to find the best fitting function in the
-    ideal dataset for each function in the noisy dataset.
+    Apply least squares regression to approximate functions from a
+    noisy dataset to ideal functions.
 
     Args:
-        df_ideal (pandas DataFrame): The ideal dataset containing the
-            x and y values of the functions.
-        df_noisy (pandas DataFrame): The noisy dataset containing the
-            x and y values of the functions.
+        df_i (pandas.DataFrame): The first dataset containing the
+            x and y values of the ideal functions.
+        df_n (pandas.DataFrame): The second dataset containing the
+            x and y values of the functions which are to be approximated
+            to the ideal functions .
 
     Returns:
-        numpy array: An array containing the indices of the best fitting
-            functions in the ideal dataset for each function in the noisy
-            dataset. Array shape: (4, 2)
+        DataFrame: Dataframe with same shape as the second dataset but the
+            data is replaced by the new "more ideal" functions
+
+
+    Example Usage:
+        approxed_funcs_index, approxed_funcs_df = lsr_to_fit_functions(
+            ideal_dataset.df, train_dataset.df)
     '''
 
     # Define a function, that calculates the sum of the squared deviations
@@ -95,39 +144,49 @@ def least_square_regression(df_ideal, df_noisy):
         return y - np.polyval(p, x)
 
     # Transforming the columns into Numpy-Arrays with the help of a loop
-    noisy_functions = [df_noisy[column].tolist()
-                       for column in df_noisy.columns if column != 'x']
-    ideal_functions = [df_ideal[column].tolist()
-                       for column in df_ideal.columns if column != 'x']
+    ideal_functions = [df_i[column].tolist()
+                       for column in df_i.columns if column != 'x']
+    noisy_functions = [df_n[column].tolist()
+                       for column in df_n.columns if column != 'x']
 
     # Initalize array to save the results
-    result = np.zeros((50, 2), dtype=float)
-    noise_free_functions = np.zeros((4, 2), dtype=int)
+    result = np.zeros((len(df_i.columns)-1, 2), dtype=float)
+    approxed_funcs_index = np.zeros((len(df_n.columns)-1, 2), dtype=int)
 
     # Loop over the functions and find the best match
     for j, f in enumerate(noisy_functions):
         # Iterate over the 50 ideal functions
         for i in range(50):
             p = least_squares(residuals, np.ones(3), method='trf',
-                              args=(ideal_functions[i], np.arange(400)),
+                              args=(ideal_functions[i],
+                                    np.arange(len(df_i))),
                               verbose=0).x
             # Note: method=... trf and lm throw same result
 
             # Save the results into an array
             result[i, 0] = i+1
             result[i, 1] = np.linalg.norm(
-                (np.polyval(p, np.arange(400)) - f) ** 2)
+                (np.polyval(p, np.arange(len(df_i))) - f) ** 2)
 
         # Sort the result array after the sum of squared deviations
         sorted_indices = np.argsort(result[:, 1])
         result = result[sorted_indices]
 
         # Save the best result into the new array
-        noise_free_functions[j, 0] = j+1
-        noise_free_functions[j, 1] = int(result[0, 0])
+        approxed_funcs_index[j, 0] = j+1
+        approxed_funcs_index[j, 1] = int(result[0, 0])
 
+    # create df with the new 'ideal' functions that replace
+    # the old noisy functions
+    # Note: noisefree_funcs_index has a (len(df_i.columns)-1, 2) shape
+    approxed_funcs_df = pd.DataFrame(
+        columns=['x'], index=range(len(df_i)))
+    approxed_funcs_df['x'] = df_i.iloc[:, 0]
+    for i in range(4):
+        row_nr = approxed_funcs_index[i, 1]
+        approxed_funcs_df['y'+str(row_nr)] = df_i.iloc[:, row_nr]
     logging.debug('least_square_regression - done')
-    return noise_free_functions
+    return approxed_funcs_df
 
 
 def find_best_fit_for_test_data(df_noisefree, df_test):
@@ -408,18 +467,9 @@ if __name__ == '__main__':
                                         engine=engine)
     # plot_ideal_funcs()
 
-    noisefree_funcs_index = least_square_regression(
+    noisefree_df = lsr_to_fit_functions(
         ideal_dataset.df, train_dataset.df)
-    # noisefree_funcs_index has a (4, 2) shape
 
-    # create df with the 4 new 'ideal' functions instead of
-    # the 4 noisy functions from the 'train' dataset
-    noisefree_df = pd.DataFrame(
-        columns=['x'], index=range(400))
-    noisefree_df['x'] = ideal_dataset.df.iloc[:, 0]
-    for i in range(4):
-        row_nr = noisefree_funcs_index[i, 1]
-        noisefree_df['y'+str(row_nr)] = ideal_dataset.df.iloc[:, row_nr]
     # plot_noisefree_funcs(noisefree_df)
 
     test_dataset = DatasetCSV(file_name='test.csv')
@@ -429,5 +479,5 @@ if __name__ == '__main__':
         noisefree_df, test_dataset.df)
     table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
     logging.info('finished exporting all relevant data to SQL DB')
-    plot_noisefree_funcs_w_tps(
-        functions_testdp_df, noisefree_df, table3_df)
+    # plot_noisefree_funcs_w_tps(
+    #     functions_testdp_df, noisefree_df, table3_df)
