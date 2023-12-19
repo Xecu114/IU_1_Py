@@ -118,7 +118,7 @@ class DatasetWithSQLTable(DatasetCSV):
         logging.debug(self._table_name + ' - written Data to SQL')
 
 
-def lsr_to_fit_functions(df_i, df_n):
+def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
     '''
     Apply least squares regression to approximate functions from a
     noisy dataset to ideal functions.
@@ -140,6 +140,28 @@ def lsr_to_fit_functions(df_i, df_n):
             ideal_dataset.df, train_dataset.df)
     '''
 
+    # check if args are correct type
+    if not isinstance(df_i, pd.DataFrame):
+        raise TypeError("df_i must be a pandas DataFrame")
+    if not isinstance(df_n, pd.DataFrame):
+        raise TypeError("df_n must be a pandas DataFrame")
+
+    # check for missing / wrong values
+    # Check if each element is numeric
+    numeric_check = df_i.map(np.isreal)
+    numeric_check2 = df_n.map(np.isreal)
+
+    # If there are non-real values, raise TypeError
+    if not numeric_check.all().all():
+        raise TypeError("df_i includes wrong value types")
+    if not numeric_check2.all().all():
+        raise TypeError("df_n includes wrong value types")
+
+    if df_i.isnull().values.any():
+        raise TypeError("df_i has missing values")
+    if df_n.isnull().values.any():
+        raise TypeError("df_n has missing values")
+
     # Define a function, that calculates the sum of the squared deviations
     def residuals(p, y, x):
         return y - np.polyval(p, x)
@@ -157,7 +179,7 @@ def lsr_to_fit_functions(df_i, df_n):
     # Loop over the functions and find the best match
     for j, f in enumerate(noisy_functions):
         # Iterate over the 50 ideal functions
-        for i in range(50):
+        for i in range(len(df_i.columns)-1):
             p = least_squares(residuals, np.ones(3), method='trf',
                               args=(ideal_functions[i],
                                     np.arange(len(df_i))),
@@ -185,7 +207,7 @@ def lsr_to_fit_functions(df_i, df_n):
     # add the x values
     approxed_funcs_df['x'] = df_i.iloc[:, 0]
     # add column after column the "ideal" dfunctions
-    for i in range(4):
+    for i in range(len(df_n.columns)-1):
         row_nr = approxed_funcs_index[i, 1]
         approxed_funcs_df['y'+str(row_nr)] = df_i.iloc[:, row_nr]
 
