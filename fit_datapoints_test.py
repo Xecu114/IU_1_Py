@@ -1,6 +1,6 @@
 import unittest
 from fit_datapoints import DatasetCSV, DatasetWithSQLTable, \
-    lsr_to_fit_functions
+    approx_funcs_with_lsr, approx_test_datapoints_to_funcs
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine, inspect
@@ -70,7 +70,7 @@ class UnitTests(unittest.TestCase):
 
     # The function should return a pandas DataFrame with the same shape as the
     # second dataset.
-    def test_return_same_shape(self):
+    def test_lsr_return_same_shape(self):
         # Create sample dataframes
         df_i = pd.DataFrame({'x': [1, 2, 3], 'y1': [1, 2, 3], 'y2': [4, 5, 6],
                             'y3': [1, 5, 20]})
@@ -78,13 +78,13 @@ class UnitTests(unittest.TestCase):
                              'y2': [1.01, 2.01, 3.01]})
 
         # Call the function
-        result = lsr_to_fit_functions(df_i, df_n)
+        result = approx_funcs_with_lsr(df_i, df_n)
 
         # Check if the shape is the same
         self.assertEqual(result.shape, df_n.shape)
 
     # The returned DataFrame should have the x values from the ideal dataset.
-    def test_x_values_from_ideal_dataset(self):
+    def test_lsr_x_values_from_ideal_dataset(self):
         # Create sample dataframes
         df_i = pd.DataFrame({'x': [1, 2, 3], 'y1': [1, 2, 3], 'y2': [4, 5, 6],
                             'y3': [1, 5, 20]})
@@ -92,14 +92,14 @@ class UnitTests(unittest.TestCase):
                              'y2': [1.01, 2.01, 3.01]})
 
         # Call the function
-        result = lsr_to_fit_functions(df_i, df_n)
+        result = approx_funcs_with_lsr(df_i, df_n)
 
         # Check if the x values are from the ideal dataset
         self.assertEqual(result['x'].tolist(), df_i['x'].tolist())
 
     # The returned DataFrame should have the y values replaced by the new
     # "more ideal" functions.
-    def test_y_values_replaced(self):
+    def test_lsr_y_values_replaced(self):
         # Create sample dataframes
         df_i = pd.DataFrame({'x': [1, 2, 3], 'y1': [1, 2, 3], 'y2': [4, 5, 6],
                             'y3': [1, 5, 20]})
@@ -107,36 +107,36 @@ class UnitTests(unittest.TestCase):
                              'y2': [1.01, 2.01, 3.01]})
 
         # Call the function
-        result = lsr_to_fit_functions(df_i, df_n)
+        result = approx_funcs_with_lsr(df_i, df_n)
 
         # Check if the y values are replaced by the new "more ideal" functions
         self.assertEqual(result['y1'].tolist(), df_i['y1'].tolist())
         self.assertEqual(result['y2'].tolist(), df_i['y2'].tolist())
 
     # The function should handle empty datasets.
-    def test_empty_datasets(self):
+    def test_lsr_empty_datasets(self):
         # Create empty dataframes
         df_i = pd.DataFrame(columns=['x', 'y1', 'y2'])
         df_n = pd.DataFrame(columns=['x', 'y1', 'y2'])
 
         # Call the function
-        result = lsr_to_fit_functions(df_i, df_n)
+        result = approx_funcs_with_lsr(df_i, df_n)
 
         # Check if the result is an empty dataframe
         self.assertTrue(result.empty)
 
     # The function should handle arguments with wrong data types
-    def test_wrong_dataset_type(self):
+    def test_lsr_wrong_dataset_type(self):
         # Create empty dataframes
         df_i = pd.DataFrame(columns=['x', 'y1', 'y2'])
         df_n = ['x', 'y1', 'y2']
 
         # Call the function
         with self.assertRaises(TypeError):
-            lsr_to_fit_functions(df_i, df_n)  # type: ignore
+            approx_funcs_with_lsr(df_i, df_n)  # type: ignore
 
     # The function should handle datasets with missing values.
-    def test_datasets_with_missing_values(self):
+    def test_lsr_datasets_with_missing_values(self):
         # Create sample dataframes with missing values
         df_i = pd.DataFrame(
             {'x': [1, 2, 3], 'y1': [1, 2, 3], 'y2': [4, 5, 6]})
@@ -145,10 +145,10 @@ class UnitTests(unittest.TestCase):
 
         # Call the function
         with self.assertRaises(TypeError):
-            lsr_to_fit_functions(df_i, df_n)
+            approx_funcs_with_lsr(df_i, df_n)
 
     # The function should handle datasets with wrong value types.
-    def test_datasets_with_wrong_value_types(self):
+    def test_lsr_datasets_with_wrong_value_types(self):
         # Create sample dataframes with missing values
         df_i = pd.DataFrame(
             {'x': [1, 2, 3], 'y1': [1, "bad value", 3], 'y2': [4, 5, np.nan]})
@@ -157,7 +157,69 @@ class UnitTests(unittest.TestCase):
 
         # Call the function
         with self.assertRaises(TypeError):
-            lsr_to_fit_functions(df_i, df_n)
+            approx_funcs_with_lsr(df_i, df_n)
+
+    '''
+    "approx_test_datapoints_to_funcs" unit tests
+    '''
+
+    # The function correctly checks if the input arguments are
+    # pandas DataFrames.
+    def test_approx_check_input_arguments_are_pandas_DataFrames(self):
+        # Arrange
+        df_funcs = pd.DataFrame({'x': [1, 2, 3], 'y1': [4, 5, 6]})
+        df_test = pd.DataFrame({'x': [1, 2, 3], 'y': [7, 8, 9]})
+
+        # Act and Assert
+        self.assertRaises(
+            TypeError, approx_test_datapoints_to_funcs,
+            df_funcs.values, df_test)
+        self.assertRaises(
+            TypeError, approx_test_datapoints_to_funcs,
+            df_funcs, df_test.values)
+        self.assertRaises(
+            TypeError, approx_test_datapoints_to_funcs,
+            'df_funcs', df_test)
+        self.assertRaises(
+            TypeError, approx_test_datapoints_to_funcs,
+            df_funcs, 'df_test')
+
+    # The function correctly checks if the input arguments
+    # contain only numeric values.
+    def test_approx_check_input_arguments_contain_only_numeric_values(self):
+        # Arrange
+        df_funcs = pd.DataFrame({'x': [1, 2, 3], 'y1': [4, 5, '6']})
+        df_test = pd.DataFrame({'x': [1, 2, 3], 'y': [7, 8, 9]})
+
+        # Act and Assert
+        self.assertRaises(TypeError, approx_test_datapoints_to_funcs,
+                          df_funcs, df_test)
+
+    # The function correctly checks if the input arguments contain no
+    # missing values.
+    def test_approx_check_input_arguments_contain_no_missing_values(self):
+        # Arrange
+        df_funcs = pd.DataFrame({'x': [1, 2, 3], 'y1': [4, 5, 6]})
+        df_test = pd.DataFrame({'x': [1, 2, 3], 'y': [7, np.nan, 9]})
+
+        # Act and Assert
+        self.assertRaises(TypeError, approx_test_datapoints_to_funcs,
+                          df_funcs, df_test)
+
+    # The function correctly checks if the input arguments contain
+    # correct column labeling
+    def test_approx_check_input_arguments_contain_correct_columns(self):
+        # Arrange
+        df_funcs = pd.DataFrame({'x': [1, 2, 3], 'y1': [4, 5, 6]})
+        df_test = pd.DataFrame({'x': [1, 2, 3], 'b': [7, 8, 9]})
+        df_funcs2 = pd.DataFrame({'z': [1, 2, 3], 'y1': [4, 5, 6]})
+        df_test2 = pd.DataFrame({'x': [1, 2, 3], 'y': [7, 8, 9]})
+
+        # Act and Assert
+        self.assertRaises(ValueError, approx_test_datapoints_to_funcs,
+                          df_funcs, df_test)
+        self.assertRaises(ValueError, approx_test_datapoints_to_funcs,
+                          df_funcs2, df_test2)
 
 
 # dieses Skript im unittest-Kontext ausführen

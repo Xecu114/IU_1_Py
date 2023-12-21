@@ -118,7 +118,7 @@ class DatasetWithSQLTable(DatasetCSV):
         logging.debug(self._table_name + ' - written Data to SQL')
 
 
-def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
+def approx_funcs_with_lsr(df_i: pd.DataFrame, df_n: pd.DataFrame):
     '''
     Apply least squares regression to approximate functions from a
     noisy dataset to ideal functions.
@@ -136,7 +136,7 @@ def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
 
 
     Example Usage:
-        approxed_funcs_index, approxed_funcs_df = lsr_to_fit_functions(
+        approxed_funcs_index, approxed_funcs_df = approx_funcs_with_lsr(
             ideal_dataset.df, train_dataset.df)
     '''
 
@@ -145,18 +145,15 @@ def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
         raise TypeError("df_i must be a pandas DataFrame")
     if not isinstance(df_n, pd.DataFrame):
         raise TypeError("df_n must be a pandas DataFrame")
-
-    # check for missing / wrong values
     # Check if each element is numeric
     numeric_check = df_i.map(np.isreal)
     numeric_check2 = df_n.map(np.isreal)
-
     # If there are non-real values, raise TypeError
     if not numeric_check.all().all():
         raise TypeError("df_i includes wrong value types")
     if not numeric_check2.all().all():
         raise TypeError("df_n includes wrong value types")
-
+    # check for missing / wrong values
     if df_i.isnull().values.any():
         raise TypeError("df_i has missing values")
     if df_n.isnull().values.any():
@@ -166,6 +163,10 @@ def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
     def residuals(p, y, x):
         return y - np.polyval(p, x)
 
+    # get length of the columns and store value into a variable
+    df_i_col_len = len(df_i.columns)-1
+    df_n_col_len = len(df_n.columns)-1
+
     # Transforming the columns into Numpy-Arrays with the help of a loop
     ideal_functions = [df_i[column].tolist()
                        for column in df_i.columns if column != 'x']
@@ -173,13 +174,13 @@ def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
                        for column in df_n.columns if column != 'x']
 
     # Initalize array to save the results
-    result = np.zeros((len(df_i.columns)-1, 2), dtype=float)
+    result = np.zeros((df_i_col_len, 2), dtype=float)
     approxed_funcs_index = np.zeros((len(df_n.columns)-1, 2), dtype=int)
 
     # Loop over the functions and find the best match
     for j, f in enumerate(noisy_functions):
         # Iterate over the 50 ideal functions
-        for i in range(len(df_i.columns)-1):
+        for i in range(df_i_col_len):
             p = least_squares(residuals, np.ones(3), method='trf',
                               args=(ideal_functions[i],
                                     np.arange(len(df_i))),
@@ -201,13 +202,13 @@ def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
 
     # create df with the new "ideal" functions that replace
     # the old noisy functions
-    # Note: noisefree_funcs_index has a (len(df_i.columns)-1, 2) shape
+    # Note: noisefree_funcs_index has a (df_i_col_len, 2) shape
     approxed_funcs_df = pd.DataFrame(
         columns=['x'], index=range(len(df_i)))
     # add the x values
     approxed_funcs_df['x'] = df_i.iloc[:, 0]
     # add column after column the "ideal" dfunctions
-    for i in range(len(df_n.columns)-1):
+    for i in range(df_n_col_len):
         row_nr = approxed_funcs_index[i, 1]
         approxed_funcs_df['y'+str(row_nr)] = df_i.iloc[:, row_nr]
 
@@ -215,18 +216,19 @@ def lsr_to_fit_functions(df_i: pd.DataFrame, df_n: pd.DataFrame):
     return approxed_funcs_df
 
 
-def find_best_fit_for_test_data(df_noisefree, df_test):
+def approx_test_datapoints_to_funcs(df_funcs, df_test):
     '''
     Checks to which of the four noise-free / ideal functions each test
     datapoint can be approximated.
 
     Args:
-        df_noisefree (pandas DataFrame): The DataFrame needs to contain the
-            four noise-free / ideal functions with their x and y values.
-            shape: (400r x 5c)
+        df_funcs (pandas DataFrame): The DataFrame needs to contain the
+            functions that the test datapoints should be approximated to.
+            Should include their x and y values (y values should be labeled).
+            example columns: ['x', 'y1', 'y2', ...]
         df_test (pandas DataFrame): The DataFrame needs to contain the test
             points with their x and y values.
-            shape: (100r x 2c)
+            ! Should have 2 columns: ['x', 'y']
 
     Returns:
         results_df (pandas.DataFrame):
@@ -248,13 +250,40 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
             shape: (100r x 5c)
     '''
 
-    def is_point_nearby(function_df, testpoint):
+    # check if args are correct type
+    if not isinstance(df_funcs, pd.DataFrame):
+        raise TypeError("df_funcs must be a pandas DataFrame")
+    if not isinstance(df_test, pd.DataFrame):
+        raise TypeError("df_test must be a pandas DataFrame")
+    # Check if each element is numeric
+    numeric_check = df_funcs.map(np.isreal)
+    numeric_check2 = df_test.map(np.isreal)
+    # If there are non-real values, raise TypeError
+    if not numeric_check.all().all():
+        raise TypeError("df_funcs includes wrong value types")
+    if not numeric_check2.all().all():
+        raise TypeError("df_test includes wrong value types")
+    # check for missing / wrong values
+    if df_funcs.isnull().values.any():
+        raise TypeError("df_funcs has missing values")
+    if df_test.isnull().values.any():
+        raise TypeError("df_test has missing values")
+    if df_funcs.columns.tolist()[0] != 'x':
+        raise ValueError(
+            f"first column of df_funcs should be 'x', but is "
+            f"{df_funcs.columns.tolist()[0]}")
+    if df_test.columns.tolist() != ['x', 'y']:
+        raise ValueError(
+            f"df_test should have two columns: ['x', 'y'], but has "
+            f"{df_test.columns.values}")
+
+    def is_point_nearby(functions_df, testpoint):
         '''
         Check if a given test point is nearby a specific function
         in the dataset (pandas.DataFrame).
 
         Args:
-        function_df: A pandas.DataFrame containing the function
+        functions_df: A pandas.DataFrame containing the function
             with their x and y values.
         testpoint: The y-value of the test point.
 
@@ -263,16 +292,17 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
             function.
         '''
 
-        # get the index of the x position in the 400 row DataFrames
-        x_index = function_df.loc[function_df['x']
-                                  == df_test.iloc[i, 0]].index[0]
+        # get the index of the x position in the DataFrame containing
+        # the functions
+        x_index = functions_df.loc[functions_df['x']
+                                   == df_test.iloc[i, 0]].index[0]
         if i < 10:
-            dist = function_df.iloc[x_index:(x_index+2), j].apply(
+            dist = functions_df.iloc[x_index:(x_index+2), j].apply(
                 lambda x: abs((x - testpoint))).min()
         else:
-            dist = function_df.iloc[(x_index-2):(x_index+2), j].apply(
+            dist = functions_df.iloc[(x_index-2):(x_index+2), j].apply(
                 lambda x: abs((x - testpoint))).min()
-        temp_y = function_df.iloc[x_index, j]
+        temp_y = functions_df.iloc[x_index, j]
         dist_min = ((temp_y*1.3)-temp_y)  # type: ignore
         if dist_min < 0.5:
             dist_min = 0.5
@@ -285,12 +315,12 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
     fitted_testdp_df['Nr. of the ideal function'] = '-'
     fitted_testdp_df['Nr. of all fitting functions'] = ''
 
-    for j in range(len(df_noisefree.columns)):
+    for j in range(len(df_funcs.columns)):
         if j > 0:
-            c = str(df_noisefree.columns[j])+'_testpoints'
+            c = str(df_funcs.columns[j])+'_testpoints'
             for i in range(len(df_test)):
                 delta_y, is_nearby = is_point_nearby(
-                    df_noisefree, df_test.loc[i, 'y'])
+                    df_funcs, df_test.loc[i, 'y'])
                 if is_nearby:
                     results_df.loc[i, c] = df_test.loc[i, 'y']
 
@@ -299,30 +329,26 @@ def find_best_fit_for_test_data(df_noisefree, df_test):
                         fitted_testdp_df.iloc[i, 2] = \
                             round(delta_y, 3)
                         fitted_testdp_df.iloc[i, 3] = \
-                            str(df_noisefree.columns[j])
+                            str(df_funcs.columns[j])
                         fitted_testdp_df.iloc[i, 4] = \
-                            str(df_noisefree.columns[j])
+                            str(df_funcs.columns[j])
                     else:
-                        # fitted_testdp_df.iloc[i, 2] = \
-                        #     fitted_testdp_df.iloc[i, 2] + ', ' +\
-                        #     str(round(delta_y, 3))
-
                         # choose best match by comparing the distances
                         if delta_y < fitted_testdp_df.iloc[i, 2]:
                             fitted_testdp_df.iloc[i, 2] = \
                                 round(delta_y, 3)
                             fitted_testdp_df.iloc[i, 3] = \
-                                str(df_noisefree.columns[j])
+                                str(df_funcs.columns[j])
 
                         fitted_testdp_df.iloc[i, 4] = \
-                            fitted_testdp_df.iloc[i, 4] + ', ' + \
-                            str(df_noisefree.columns[j])
+                            str(fitted_testdp_df.iloc[i, 4]) + ', ' + \
+                            str(df_funcs.columns[j])
 
     # fitted_testdp_df['Delta Y (Deviation)'].replace(
     #     '', '-', inplace=True)
     fitted_testdp_df['Nr. of all fitting functions'].replace(
         '', '-', inplace=True)
-    logging.debug('find_best_fit_for_test_data - done')
+    logging.debug('approx_test_datapoints_to_funcs - done')
     return results_df, fitted_testdp_df
 
 
@@ -365,13 +391,10 @@ def plot_all_ideal_funcs():
 def plot_noisefree_funcs(df):
     '''
     Generates a line plot of two sets of data using the Bokeh library.
-    The first set of data is the new ideal functions that match the noisy
-    train functions, which are the second set of data.
+    ...
 
     Args:
-        df (DataFrame): The DataFrame containing the ideal or 'noisefree'
-            data. It should contain at the the column 'x' and one column
-            for each of the four functions.
+        df (DataFrame): ...
 
     Returns:
         None
@@ -502,7 +525,7 @@ if __name__ == '__main__':
     # the noisy functions to the ideal functions and get a new
     # dataframe with the ideal functions that fitted the best
     # shape of noisefree_df is: (5, 400)
-    noisefree_df = lsr_to_fit_functions(
+    noisefree_df = approx_funcs_with_lsr(
         ideal_dataset.df, train_dataset.df)
 
     # plot the result by laying the noisy functions over the approxed
@@ -517,7 +540,7 @@ if __name__ == '__main__':
         sort_values(by='x').reset_index(drop=True)
     # find the best fits for each test data points by checking which of the
     # four ideal functions each test data point can be approximated to
-    functions_testdp_df, table3_df = find_best_fit_for_test_data(
+    functions_testdp_df, table3_df = approx_test_datapoints_to_funcs(
         noisefree_df, test_dataset.df)
     # export the resulting data to the SQL db
     table3_df.to_sql('Test_Datapoints_Fitted', con=engine, index=False)
