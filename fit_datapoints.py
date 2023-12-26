@@ -12,9 +12,8 @@ logging.basicConfig(level=logging.DEBUG)
 plottenQ = False
 
 files_path = 'Python_Course_IU'
-my_db_path = files_path + '/db/my_db.db'
+my_db_path = os.path.join(files_path, '/db/my_db.db')
 td_filename = 'test.csv'
-engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
 
 
 class DatasetCSV():
@@ -508,6 +507,8 @@ if __name__ == '__main__':
         # create the path if path isn't already created
         if not os.path.exists(my_db_path.rsplit('/', 1)[0]):
             os.makedirs(my_db_path.rsplit('/', 1)[0].replace('/', '\\'))
+    # create SQLite Database
+    engine = create_engine(f'sqlite:///{my_db_path}', echo=False)
 
     # create new class instance that represents the datasets
     # from the "train.csv" and "ideal.csv" files
