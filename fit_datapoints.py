@@ -9,7 +9,7 @@ from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
 
 logging.basicConfig(level=logging.DEBUG)
-plottenQ = False
+plottenQ = True
 
 files_path = 'Python_Course_IU'
 my_db_path = os.path.join(files_path, '/db/my_db.db')
@@ -94,6 +94,7 @@ class DatasetWithSQLTable(DatasetCSV):
             raise TypeError("file_name must be a string")
         if not isinstance(table_name, str):
             raise TypeError("table_name must be a string")
+        # call constructor of parent class ("DatasetCSV")
         super().__init__(file_name)
         self._table_name = table_name
         self._engine = engine
@@ -158,7 +159,8 @@ def approx_funcs_with_lsr(df_i: pd.DataFrame, df_n: pd.DataFrame):
     if df_n.isnull().values.any():
         raise TypeError("df_n has missing values")
 
-    # Define a function, that calculates the sum of the squared deviations
+    # Define a function, that calculates the residuals for a given set of
+    # polynomial coefficients p,  observed y-values (y), and x-values (x).
     def residuals(p, y, x):
         return y - np.polyval(p, x)
 
@@ -177,9 +179,10 @@ def approx_funcs_with_lsr(df_i: pd.DataFrame, df_n: pd.DataFrame):
     approxed_funcs_index = np.zeros((len(df_n.columns)-1, 2), dtype=int)
 
     # Loop over the functions and find the best match
-    for j, f in enumerate(noisy_functions):
-        # Iterate over the 50 ideal functions
+    for j, np_array in enumerate(noisy_functions):
+        # Iterate over the ideal functions
         for i in range(df_i_col_len):
+            # get parameters of the ideal function with least squares method
             p = least_squares(residuals, np.ones(3), method='trf',
                               args=(ideal_functions[i],
                                     np.arange(len(df_i))),
@@ -188,8 +191,10 @@ def approx_funcs_with_lsr(df_i: pd.DataFrame, df_n: pd.DataFrame):
 
             # Save the results into an array
             result[i, 0] = i+1
+            # calculate difference between the predicted values of the polynom
+            # and the actual values of the noisy function
             result[i, 1] = np.linalg.norm(
-                (np.polyval(p, np.arange(len(df_i))) - f) ** 2)
+                (np.polyval(p, np.arange(len(df_i))) - np_array) ** 2)
 
         # Sort the result array after the sum of squared deviations
         sorted_indices = np.argsort(result[:, 1])
@@ -206,7 +211,7 @@ def approx_funcs_with_lsr(df_i: pd.DataFrame, df_n: pd.DataFrame):
         columns=['x'], index=range(len(df_i)))
     # add the x values
     approxed_funcs_df['x'] = df_i.iloc[:, 0]
-    # add column after column the "ideal" dfunctions
+    # add column after column the "ideal" functions
     for i in range(df_n_col_len):
         row_nr = approxed_funcs_index[i, 1]
         approxed_funcs_df['y'+str(row_nr)] = df_i.iloc[:, row_nr]
@@ -387,37 +392,46 @@ def plot_all_ideal_funcs():
         show(plot)  # type: ignore
 
 
-def plot_noisefree_funcs(df):
+def plot_two_dataframes(df1, df2):
     '''
     Generates a line plot of two sets of data using the Bokeh library.
+    The DataFrames need to have the first column named 'x' with the x values
+    and the other columns need to contain the y values
     ...
 
     Args:
-        df (DataFrame): ...
+        df1 (DataFrame): ...
+        df2 (DataFrame): ...
 
     Returns:
         None
 
     Example Usage:
-        plot_noisefree_functions(noisefree_df)
+        plot_noisefree_functions(df1, df2)
     '''
+    if df1.columns.tolist()[0] != 'x' or df2.columns.tolist()[0] != 'x':
+        raise ValueError("The first column of both df1 and df2 should be 'x'.")
+
     output_file('noisefree_data_diagram.html')
     plot = figure(width=1200, height=900,
                   title='Noisefree Functions Line Plot',
                   x_axis_label='x', y_axis_label='y')
-    min_max_values = df['x'].agg(['min', 'max'])
+    # get min and max 'x' value
+    min_max_values = df1['x'].agg(['min', 'max'])
+    # plot x_axis
     plot.x_range = Range1d(min_max_values.iloc[0],
                            min_max_values.iloc[1])
-    for i, column in enumerate(train_dataset.df.columns):
+    # plot the lines
+    for i, column in enumerate(df1.columns):
         if i > 0:
-            plot.line(train_dataset.df.iloc[:, 0], train_dataset.df[column],
+            plot.line(df1.iloc[:, 0], df1[column],
                       line_color=Spectral11[i % len(Spectral11)],
-                      legend_label='train_'+str(column))
-    for i, column in enumerate(df.columns):
+                      legend_label='df1_'+str(column))
+    for i, column in enumerate(df2.columns):
         if i > 0:
-            plot.line(df.iloc[:, 0], df[column],
+            plot.line(df2.iloc[:, 0], df2[column],
                       line_color=Spectral11[i % len(Spectral11)],
-                      legend_label='ideal_'+str(column))
+                      legend_label='df2_'+str(column))
     plot.legend.location = 'top_left'
     show(plot)  # type: ignore
 
@@ -531,7 +545,8 @@ if __name__ == '__main__':
 
     # plot the result by laying the noisy functions over the approxed
     # ideal functions
-    plot_noisefree_funcs(noisefree_df) if plottenQ is True else None
+    plot_two_dataframes(
+        noisefree_df, train_dataset.df) if plottenQ is True else None
 
     # create new instance of the "DatasetCSV" class that reresents our
     # test data from the "test.csv" file
