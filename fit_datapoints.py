@@ -9,7 +9,7 @@ from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
 
 logging.basicConfig(level=logging.DEBUG)
-plottenQ = True
+plottenQ = False
 
 files_path = 'Python_Course_IU'
 my_db_path = os.path.join(files_path, '/db/my_db.db')
@@ -61,6 +61,58 @@ class DatasetCSV():
             logging.debug(file_path + ' - file read successfully')
         else:
             raise FileNotFoundError("File not found:", file_path)
+
+    def plot_data(self):
+        '''
+        Generates line charts representing all columns of the DataFrame using
+        the Bokeh library. Each column is displayed in a different color and
+        given its own label. If a dataset is to big for one plot, it is
+        divided into seperate DataFrames that each contain 10 functions. That
+        makes it easier to identify each function lines.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Example Usage:
+            plot_all_ideal_funcs()
+        '''
+        output_file('ideal_data_diagram.html')
+
+        # first column needs to be the x values
+        if self.df.columns.tolist()[0] != 'x':
+            raise ValueError(
+                "The first column should be 'x', but currently is: "
+                f"{self.df.columns.tolist()[0]}")
+
+        def plot_lines(plot_df):
+            plot = figure(width=1200, height=900,
+                          title='ideal.csv Line Plot' + str(plot_df.index),
+                          x_axis_label='x', y_axis_label='y')
+            min_max_values = self.df['x'].agg(['min', 'max'])
+            plot.x_range = Range1d(
+                min_max_values.iloc[0], min_max_values.iloc[1])
+            for i, column in enumerate(plot_df.columns):
+                plot.line(self.df.iloc[:, 0], plot_df[column],
+                          line_color=Spectral11[i % len(Spectral11)],
+                          legend_label=str(column))
+            plot.legend.location = 'top_left'
+            show(plot)  # type: ignore
+
+        # get number of columns with functions to plot
+        num_columns = (len(self.df.columns)-1)
+        if num_columns > 10:
+            # split the ideal dataframe into seperate dataframes with 10
+            # functions. e.g. df shape splits from [400 r x 51 c] to
+            # 5x [400 r x 10 c]
+            temp_dfs = [self.df.iloc[:, i:i+10]
+                        for i in range(1, num_columns, 10)]
+            for temp_df in temp_dfs:
+                plot_lines(temp_df)
+        else:
+            plot_lines(self.df.drop(columns='x'))
 
 
 class DatasetWithSQLTable(DatasetCSV):
@@ -356,7 +408,7 @@ def approx_test_datapoints_to_funcs(df_funcs, df_test):
     return results_df, fitted_testdp_df
 
 
-def plot_all_ideal_funcs():
+def plot_data(df):
     '''
     Generates line charts representing all columns of the DataFrame using the
     Bokeh library. Each column is displayed in a different color and given
@@ -534,8 +586,8 @@ if __name__ == '__main__':
     ideal_dataset = DatasetWithSQLTable(table_name='ideal_data',
                                         file_name='ideal.csv',
                                         engine=engine)
-    # plot_all_ideal_funcs() if plottenQ is True else None
-
+    train_dataset.plot_data() if plottenQ is True else None
+    ideal_dataset.plot_data() if plottenQ is True else None
     # apply the least squares regression method to approximate
     # the noisy functions to the ideal functions and get a new
     # dataframe with the ideal functions that fitted the best
@@ -554,6 +606,7 @@ if __name__ == '__main__':
     # sort the data by x value
     test_dataset.df = test_dataset.df.\
         sort_values(by='x').reset_index(drop=True)
+    test_dataset.plot_data() if plottenQ is True else None
     # find the best fits for each test data points by checking which of the
     # four ideal functions each test data point can be approximated to
     functions_testdp_df, table3_df = approx_test_datapoints_to_funcs(
