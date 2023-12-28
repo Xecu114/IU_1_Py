@@ -66,7 +66,7 @@ class DatasetCSV():
         '''
         Generates line charts representing all columns of the DataFrame using
         the Bokeh library. Each column is displayed in a different color and
-        given its own label. If a dataset is to big for one plot, it is
+        given its own label. If a dataset is too big for one plot, it is
         divided into seperate DataFrames that each contain 10 functions. That
         makes it easier to identify each function lines.
 
@@ -87,15 +87,17 @@ class DatasetCSV():
                 "The first column should be 'x', but currently is: "
                 f"{self.df.columns.tolist()[0]}")
 
-        def plot_lines(plot_df):
+        # def function to plot the df
+        def plot_df(temp_df):
             plot = figure(width=1200, height=900,
-                          title='ideal.csv Line Plot' + str(plot_df.index),
+                          title=f'{self._file_name}.csv Line Plot' +
+                          str(temp_df.index),
                           x_axis_label='x', y_axis_label='y')
             min_max_values = self.df['x'].agg(['min', 'max'])
             plot.x_range = Range1d(
                 min_max_values.iloc[0], min_max_values.iloc[1])
-            for i, column in enumerate(plot_df.columns):
-                plot.line(self.df.iloc[:, 0], plot_df[column],
+            for i, column in enumerate(temp_df.columns):
+                plot.line(self.df.iloc[:, 0], temp_df[column],
                           line_color=Spectral11[i % len(Spectral11)],
                           legend_label=str(column))
             plot.legend.location = 'top_left'
@@ -103,16 +105,18 @@ class DatasetCSV():
 
         # get number of columns with functions to plot
         num_columns = (len(self.df.columns)-1)
+        # check if df is too big
         if num_columns > 10:
             # split the ideal dataframe into seperate dataframes with 10
             # functions. e.g. df shape splits from [400 r x 51 c] to
             # 5x [400 r x 10 c]
-            temp_dfs = [self.df.iloc[:, i:i+10]
-                        for i in range(1, num_columns, 10)]
-            for temp_df in temp_dfs:
-                plot_lines(temp_df)
+            splitted_dfs = [self.df.iloc[:, i:i+10]
+                            for i in range(1, num_columns, 10)]
+            # plot each 10 funcs in seperate plots
+            for splitted_df in splitted_dfs:
+                plot_df(splitted_df)
         else:
-            plot_lines(self.df.drop(columns='x'))
+            plot_df(self.df.drop(columns='x'))
 
 
 class DatasetWithSQLTable(DatasetCSV):
@@ -210,6 +214,9 @@ def approx_funcs_with_lsr(df_i: pd.DataFrame, df_n: pd.DataFrame):
         raise TypeError("df_i has missing values")
     if df_n.isnull().values.any():
         raise TypeError("df_n has missing values")
+    # check if the first column is 'x'
+    if df_i.columns.tolist()[0] != 'x' or df_n.columns.tolist()[0] != 'x':
+        raise ValueError("The first column of both df1 and df2 should be 'x'.")
 
     # Define a function, that calculates the residuals for a given set of
     # polynomial coefficients p,  observed y-values (y), and x-values (x).
@@ -243,30 +250,27 @@ def approx_funcs_with_lsr(df_i: pd.DataFrame, df_n: pd.DataFrame):
 
             # Save the results into an array
             result[i, 0] = i+1
-            # calculate difference between the predicted values of the polynom
-            # and the actual values of the noisy function
+            # calculate norm of the squared deviation between the predicted
+            # values of the polynom and the actual values of the noisy function
             result[i, 1] = np.linalg.norm(
                 (np.polyval(p, np.arange(len(df_i))) - np_array) ** 2)
 
-        # Sort the result array after the sum of squared deviations
-        sorted_indices = np.argsort(result[:, 1])
-        result = result[sorted_indices]
-
+        # Sort the result array
+        result = result[np.argsort(result[:, 1])]
         # Save the best result into the new array
         approxed_funcs_index[j, 0] = j+1
         approxed_funcs_index[j, 1] = int(result[0, 0])
 
     # create df with the new "ideal" functions that replace
     # the old noisy functions
-    # Note: noisefree_funcs_index has a (df_i_col_len, 2) shape
     approxed_funcs_df = pd.DataFrame(
         columns=['x'], index=range(len(df_i)))
     # add the x values
     approxed_funcs_df['x'] = df_i.iloc[:, 0]
     # add column after column the "ideal" functions
     for i in range(df_n_col_len):
-        row_nr = approxed_funcs_index[i, 1]
-        approxed_funcs_df['y'+str(row_nr)] = df_i.iloc[:, row_nr]
+        col_nr = approxed_funcs_index[i, 1]
+        approxed_funcs_df['y'+str(col_nr)] = df_i.iloc[:, col_nr]
 
     logging.debug('least_square_regression - done')
     return approxed_funcs_df
@@ -406,42 +410,6 @@ def approx_test_datapoints_to_funcs(df_funcs, df_test):
         '', '-', inplace=True)
     logging.debug('approx_test_datapoints_to_funcs - done')
     return results_df, fitted_testdp_df
-
-
-def plot_data(df):
-    '''
-    Generates line charts representing all columns of the DataFrame using the
-    Bokeh library. Each column is displayed in a different color and given
-    its own label. Because the 'ideal' dataset is so big, it is divided
-    into 5 seperate DataFrames that each contain 10 functions
-
-    Args:
-        None
-
-    Returns:
-        None
-
-    Example Usage:
-        plot_all_ideal_funcs()
-    '''
-    output_file('ideal_data_diagram.html')
-
-    # split the ideal dataframe into 5 dataframes with 10 functions each
-    # shape splits from [400 r x 51 c] to 5x [400 r x 10 c]
-    dfs = [ideal_dataset.df.iloc[:, i:i+10] for i in range(1, 50, 10)]
-
-    for df in dfs:
-        plot = figure(width=1200, height=900,
-                      title='ideal.csv Line Plot' + str(df.index),
-                      x_axis_label='x', y_axis_label='y')
-        min_max_values = ideal_dataset.df['x'].agg(['min', 'max'])
-        plot.x_range = Range1d(min_max_values.iloc[0], min_max_values.iloc[1])
-        for i, column in enumerate(df.columns):
-            plot.line(ideal_dataset.df.iloc[:, 0], df[column],
-                      line_color=Spectral11[i % len(Spectral11)],
-                      legend_label=str(column))
-        plot.legend.location = 'top_left'
-        show(plot)  # type: ignore
 
 
 def plot_two_dataframes(df1, df2):
