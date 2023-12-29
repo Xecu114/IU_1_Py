@@ -1,3 +1,4 @@
+from matplotlib import legend_handler
 import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
@@ -48,12 +49,6 @@ class DatasetCSV():
     def get_dataframe_from_csv(self):
         '''
         Reads the CSV file and assigns the data to the df attribute.
-
-        Args:
-            None
-
-        Returns:
-            None
         '''
         file_path = os.path.join(files_path, self._file_name)
         if os.path.isfile(file_path):
@@ -70,12 +65,6 @@ class DatasetCSV():
         divided into seperate DataFrames that each contain 10 functions. That
         makes it easier to identify each function lines.
 
-        Args:
-            None
-
-        Returns:
-            None
-
         Example Usage:
             plot_all_ideal_funcs()
         '''
@@ -90,7 +79,7 @@ class DatasetCSV():
         # def function to plot the df
         def plot_df(temp_df):
             plot = figure(width=1200, height=900,
-                          title=f'{self._file_name}.csv Line Plot' +
+                          title=f'{self._file_name} Line Plot' +
                           str(temp_df.index),
                           x_axis_label='x', y_axis_label='y')
             min_max_values = self.df['x'].agg(['min', 'max'])
@@ -100,7 +89,8 @@ class DatasetCSV():
                 plot.line(self.df.iloc[:, 0], temp_df[column],
                           line_color=Spectral11[i % len(Spectral11)],
                           legend_label=str(column))
-            plot.legend.location = 'top_left'
+            plot.legend.location = "top_left"
+            plot.legend.click_policy = "hide"
             show(plot)  # type: ignore
 
         # get number of columns with functions to plot
@@ -162,12 +152,6 @@ class DatasetWithSQLTable(DatasetCSV):
     def write_data_to_sql(self):
         '''
         Write the data from a DataFrame to a SQLite database table.
-
-        Args:
-            None
-
-        Returns:
-            None
         '''
         self.df.to_sql(self._table_name, con=self._engine,
                        if_exists='replace', index=False)
@@ -356,16 +340,18 @@ def approx_test_datapoints_to_funcs(df_funcs, df_test):
         # the functions
         x_index = functions_df.loc[functions_df['x']
                                    == df_test.iloc[i, 0]].index[0]
-        if i < 10:
+        if x_index == 0:
             dist = functions_df.iloc[x_index:(x_index+2), j].apply(
+                lambda x: abs((x - testpoint))).min()
+        elif x_index == 1:
+            dist = functions_df.iloc[(x_index-1):(x_index+2), j].apply(
                 lambda x: abs((x - testpoint))).min()
         else:
             dist = functions_df.iloc[(x_index-2):(x_index+2), j].apply(
                 lambda x: abs((x - testpoint))).min()
-        temp_y = functions_df.iloc[x_index, j]
-        dist_min = ((temp_y*1.3)-temp_y)  # type: ignore
-        if dist_min < 0.5:
-            dist_min = 0.5
+        dist_min = (abs(functions_df.iloc[x_index, j])*0.2)
+        if dist_min < 0.2:
+            dist_min = 0.2
         return dist, (dist < dist_min)
 
     results_df = pd.DataFrame()
@@ -375,13 +361,16 @@ def approx_test_datapoints_to_funcs(df_funcs, df_test):
     fitted_testdp_df['Nr. of the ideal function'] = '-'
     fitted_testdp_df['Nr. of all fitting functions'] = ''
 
+    # iterate over the columns of df_funcs
     for j in range(len(df_funcs.columns)):
+        # skip first column because it contains the x values
         if j > 0:
-            c = str(df_funcs.columns[j])+'_testpoints'
             for i in range(len(df_test)):
+                # check if the test datapoint is nearby the current function
                 delta_y, is_nearby = is_point_nearby(
                     df_funcs, df_test.loc[i, 'y'])
                 if is_nearby:
+                    c = str(df_funcs.columns[j])+'_testpoints'
                     results_df.loc[i, c] = df_test.loc[i, 'y']
 
                     # store every matching function
@@ -399,15 +388,14 @@ def approx_test_datapoints_to_funcs(df_funcs, df_test):
                                 round(delta_y, 3)
                             fitted_testdp_df.iloc[i, 3] = \
                                 str(df_funcs.columns[j])
-
                         fitted_testdp_df.iloc[i, 4] = \
                             str(fitted_testdp_df.iloc[i, 4]) + ', ' + \
                             str(df_funcs.columns[j])
-
     # fitted_testdp_df['Delta Y (Deviation)'].replace(
     #     '', '-', inplace=True)
     fitted_testdp_df['Nr. of all fitting functions'].replace(
         '', '-', inplace=True)
+    logging.debug(f"\n {fitted_testdp_df}")
     logging.debug('approx_test_datapoints_to_funcs - done')
     return results_df, fitted_testdp_df
 
@@ -446,13 +434,14 @@ def plot_two_dataframes(df1, df2):
         if i > 0:
             plot.line(df1.iloc[:, 0], df1[column],
                       line_color=Spectral11[i % len(Spectral11)],
-                      legend_label='df1_'+str(column))
+                      legend_label='df1 - '+str(column))
     for i, column in enumerate(df2.columns):
         if i > 0:
             plot.line(df2.iloc[:, 0], df2[column],
                       line_color=Spectral11[i % len(Spectral11)],
-                      legend_label='df2_'+str(column))
-    plot.legend.location = 'top_left'
+                      legend_label='df2 - '+str(column))
+    plot.legend.location = "top_left"
+    plot.legend.click_policy = "hide"
     show(plot)  # type: ignore
 
 
@@ -498,13 +487,15 @@ def plot_noisefree_funcs_w_tps(df_testpoints,
             p = new_plot_for_each_func()
             p.line(df_noisefree.iloc[:, 0], df_noisefree[column],
                    line_color=Bokeh5[i],
-                   legend_label='ideal_'+str(column))
+                   legend_label='ideal '+str(column))
             p.scatter(test_dataset.df.iloc[:, 0], test_dataset.df.iloc[:, 1],
-                      marker='circle', size=5, fill_color='black')
+                      marker='circle', size=5, fill_color='black',
+                      legend_label='test datapoints')
             p.scatter(df_testpoints.iloc[:, 0], df_testpoints.iloc[:, i],
-                      marker='circle', size=10,
-                      fill_color=Bokeh5[i])
-            p.legend.location = 'top_left'
+                      marker='circle', size=10, fill_color=Bokeh5[i],
+                      legend_label='matching test datapoints')
+            p.legend.location = "top_left"
+            p.legend.click_policy = "hide"
             show(p)  # type: ignore
 
     # create one plot with all funcs and points
@@ -516,19 +507,23 @@ def plot_noisefree_funcs_w_tps(df_testpoints,
     p2.x_range = Range1d(min_max_values.iloc[0],
                          min_max_values.iloc[1])
     p2.scatter(test_dataset.df.iloc[:, 0], test_dataset.df.iloc[:, 1],
-               marker='circle', size=5, fill_color='black')
+               marker='circle', size=5, fill_color='black',
+               legend_label='test datapoints')
     for i, column in enumerate(df_noisefree.columns):
         if i > 0:
             p2.line(df_noisefree.iloc[:, 0], df_noisefree[column],
                     line_color=Bokeh5[i],
-                    legend_label='ideal_'+str(column))
+                    legend_label='ideal '+str(column))
             index_testdp = df_table3.loc[
                 df_table3['Nr. of the ideal function'] ==
                 str(column)].index
             for j in index_testdp:
                 p2.scatter(df_table3.iloc[j, 0], df_table3.iloc[j, 1],
-                           marker='circle', size=10,
-                           fill_color=Bokeh5[i])
+                           marker='circle', size=10, fill_color=Bokeh5[i],
+                           legend_label='matching test datapoints ' +
+                           str(column))
+    p2.legend.location = "top_left"
+    p2.legend.click_policy = "hide"
     show(p2)  # type: ignore
 
 
@@ -574,7 +569,6 @@ if __name__ == '__main__':
     # sort the data by x value
     test_dataset.df = test_dataset.df.\
         sort_values(by='x').reset_index(drop=True)
-    test_dataset.plot_data() if plottenQ is True else None
     # find the best fits for each test data points by checking which of the
     # four ideal functions each test data point can be approximated to
     functions_testdp_df, table3_df = approx_test_datapoints_to_funcs(
@@ -585,4 +579,4 @@ if __name__ == '__main__':
     # plots the ideal functions with the fitted test data points.
     plot_noisefree_funcs_w_tps(
         functions_testdp_df, noisefree_df, table3_df) \
-        if plottenQ is True else None
+        # if plottenQ is True else None
