@@ -10,7 +10,7 @@ from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
 
 logging.basicConfig(level=logging.DEBUG)
-plottenQ = False
+plottenQ = True
 
 files_path = 'Python_Course_IU'
 my_db_path = os.path.join(files_path, '/db/my_db.db')
@@ -32,31 +32,37 @@ class DatasetCSV():
         print(test_dataset.df)
     '''
 
+    # define constructor method
     def __init__(self, file_name: str):
         '''
         Constructor to assign the provided parameters to the attributes
         '''
         if not isinstance(file_name, str):
             raise TypeError("file_name must be a string")
-        # _ before the attribute name shows that it's a "private" attribute
+        # _ before the attribute name shows that it's a "protected" attribute
         # to indicate it should not be changed later
         self._file_name = file_name
         # read the csv file into a pandas.DataFrame at initialization
         self.get_dataframe_from_csv()
 
-    # method created instead of directly putting it into _init_ so it can
+    # define method for getting data from the csv files
+    # instead of directly putting it into _init_ so it could
     # be called again after initialization
     def get_dataframe_from_csv(self):
         '''
         Reads the CSV file and assigns the data to the df attribute.
         '''
+        # create the file path
         file_path = os.path.join(files_path, self._file_name)
+        # check if the file already exists
         if os.path.isfile(file_path):
+            # read the data from the csv file into a dataframe
             self.df = pd.read_csv(file_path)
             logging.debug(file_path + ' - file read successfully')
         else:
             raise FileNotFoundError("File not found:", file_path)
 
+    # define method for plotting the current data in the dataframe
     def plot_data(self):
         '''
         Generates line charts representing all columns of the DataFrame using
@@ -68,6 +74,7 @@ class DatasetCSV():
         Example Usage:
             plot_all_ideal_funcs()
         '''
+        # declare the name of the html output file
         output_file('ideal_data_diagram.html')
 
         # first column needs to be the x values
@@ -76,21 +83,31 @@ class DatasetCSV():
                 "The first column should be 'x', but currently is: "
                 f"{self.df.columns.tolist()[0]}")
 
-        # def function to plot the df
-        def plot_df(temp_df):
+        # define function to plot the df
+        def plot_dataframe(temp_df):
+            # create a figure
             plot = figure(width=1200, height=900,
                           title=f'{self._file_name} Line Plot' +
                           str(temp_df.index),
                           x_axis_label='x', y_axis_label='y')
+            # set x-axis range
             min_max_values = self.df['x'].agg(['min', 'max'])
             plot.x_range = Range1d(
                 min_max_values.iloc[0], min_max_values.iloc[1])
+            # iterate over the columns
             for i, column in enumerate(temp_df.columns):
+                # plot a line for each column,
+                # using the 'x' values from the first column of self.df
+                # and the corresponding y-values of temp_df column
+                # & assign a different color and legend label
+                # to each line.
                 plot.line(self.df.iloc[:, 0], temp_df[column],
                           line_color=Spectral11[i % len(Spectral11)],
                           legend_label=str(column))
+            # set the location and click policy of the legend
             plot.legend.location = "top_left"
             plot.legend.click_policy = "hide"
+            # display the plot using the show function.
             show(plot)  # type: ignore
 
         # get number of columns with functions to plot
@@ -98,15 +115,16 @@ class DatasetCSV():
         # check if df is too big
         if num_columns > 10:
             # split the ideal dataframe into seperate dataframes with 10
-            # functions. e.g. df shape splits from [400 r x 51 c] to
-            # 5x [400 r x 10 c]
+            # functions. e.g. df shape splits from [400 r x 51 c]
+            # to 5x [400 r x 10 c]
             splitted_dfs = [self.df.iloc[:, i:i+10]
                             for i in range(1, num_columns, 10)]
             # plot each 10 funcs in seperate plots
             for splitted_df in splitted_dfs:
-                plot_df(splitted_df)
+                plot_dataframe(splitted_df)
         else:
-            plot_df(self.df.drop(columns='x'))
+            # plot the dataframe but without the x values
+            plot_dataframe(self.df.drop(columns='x'))
 
 
 class DatasetWithSQLTable(DatasetCSV):
@@ -422,7 +440,7 @@ def plot_two_dataframes(df1, df2):
 
     output_file('noisefree_data_diagram.html')
     plot = figure(width=1200, height=900,
-                  title='Noisefree Functions Line Plot',
+                  title='Function Comparison Line Plot',
                   x_axis_label='x', y_axis_label='y')
     # get min and max 'x' value
     min_max_values = df1['x'].agg(['min', 'max'])
