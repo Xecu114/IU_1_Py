@@ -10,11 +10,12 @@ from bokeh.palettes import Spectral11, Bokeh5
 from bokeh.models import Range1d
 
 logging.basicConfig(level=logging.DEBUG)
-plottenQ = True
+# Toggle if the data should be visualized or not
+visu_onoff = True
 
+# add directory path of the working space (where the .csv files are located...)
 files_path = 'Python_Course_IU'
 my_db_path = os.path.join(files_path, '/db/my_db.db')
-td_filename = 'test.csv'
 
 
 class DatasetCSV():
@@ -567,8 +568,8 @@ if __name__ == '__main__':
     ideal_dataset = DatasetWithSQLTable(table_name='ideal_data',
                                         file_name='ideal.csv',
                                         engine=engine)
-    train_dataset.plot_data() if plottenQ is True else None
-    ideal_dataset.plot_data() if plottenQ is True else None
+    train_dataset.plot_data() if visu_onoff is True else None
+    ideal_dataset.plot_data() if visu_onoff is True else None
     # apply the least squares regression method to approximate
     # the noisy functions to the ideal functions and get a new
     # dataframe with the ideal functions that fitted the best
@@ -579,7 +580,7 @@ if __name__ == '__main__':
     # plot the result by laying the noisy functions over the approxed
     # ideal functions
     plot_two_dataframes(
-        noisefree_df, train_dataset.df) if plottenQ is True else None
+        noisefree_df, train_dataset.df) if visu_onoff is True else None
 
     # create new instance of the "DatasetCSV" class that reresents our
     # test data from the "test.csv" file
@@ -597,4 +598,4 @@ if __name__ == '__main__':
     # plots the ideal functions with the fitted test data points.
     plot_noisefree_funcs_w_tps(
         functions_testdp_df, noisefree_df, table3_df) \
-        # if plottenQ is True else None
+        if visu_onoff is True else None
