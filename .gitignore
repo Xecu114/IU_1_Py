@@ -2,3 +2,10 @@ my_db.db
 __pycache__/import_data.cpython-311.pyc
 __pycache__/plot_data.cpython-311.pyc
 __pycache__/main.cpython-311.pyc
+ideal_data_diagram.html
+noisefree_data_diagram.html
+Table3_data_diagram.html
+y6_data_diagram.html
+y11_data_diagram.html
+y33_data_diagram.html
+y36_data_diagram.html

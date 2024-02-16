@@ -1,4 +1,3 @@
-from matplotlib import legend_handler
 import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
@@ -14,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 visu_onoff = True
 
 # add directory path of the working space (where the .csv files are located...)
-files_path = 'Python_Course_IU'
+files_path = ''
 my_db_path = os.path.join(files_path, '/db/my_db.db')
 
 
